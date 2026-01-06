@@ -1,0 +1,50 @@
+﻿{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "OpenCASCADE_ROOT": "D:\\myself\\OCC\\occt-vc14-64",
+        "OpenCASCADE_INCLUDE_DIR": "D:\\myself\\OCC\\occt-vc14-64\\inc",
+        "VTK_DIR": "D:/myself/OCC/3rdparty-vc14-64/vtk-9.4.1-x64/lib/cmake/VTK-9.4",
+        "OpenCASCADE_LIBRARIES": "D:\\myself\\OCC\\occt-vc14-64\\win64\\vc14\\libd",
+        "CMAKE_CXX_STANDARD": "20"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "x64-debug",
+      "displayName": "x64 Debug",
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "x64-release",
+      "displayName": "x64 Release",
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
+}
