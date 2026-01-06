@@ -19,10 +19,13 @@ find_package(VTK REQUIRED COMPONENTS
     IOXML
 )
 
-file(GLOB SOURCES_ROOT      "*.cpp")
-file(GLOB SOURCES_GEOMETRY  "Geometry/*.cpp")
-file(GLOB SOURCES_TOPOLOGY  "Topology/*.cpp")
-file(GLOB SOURCES_FEATURE  "Feature/*.cpp")
+file(GLOB SOURCES_ROOT      "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+file(GLOB SOURCES_GEOMETRY  "${CMAKE_CURRENT_SOURCE_DIR}/Geometry/*.cpp")
+file(GLOB SOURCES_TOPOLOGY  "${CMAKE_CURRENT_SOURCE_DIR}/Topology/*.cpp")
+file(GLOB SOURCES_FEATURE   "${CMAKE_CURRENT_SOURCE_DIR}/Feature/*.cpp")
+
+# 确保 Feature/Feature.cpp 明确加入（防止 glob 漏掉）
+list(APPEND SOURCES_FEATURE "${CMAKE_CURRENT_SOURCE_DIR}/Feature/Feature.cpp")
 
 set(ALL_SOURCES
     ${SOURCES_ROOT}
@@ -30,6 +33,10 @@ set(ALL_SOURCES
     ${SOURCES_TOPOLOGY}
     ${SOURCES_FEATURE}
 )
+
+# 打印用于诊断的源文件列表
+message(STATUS "ALL_SOURCES count: ${ALL_SOURCES}")
+message(STATUS "Feature sources: ${SOURCES_FEATURE}")
 
 add_executable(PathForge ${ALL_SOURCES})
 

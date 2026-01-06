@@ -1,8 +1,11 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
+#include <cstdint>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
+#include <cstdint>
 
 namespace PathForge {
     namespace Topology {

@@ -21,6 +21,7 @@
 #include <vtkLookupTable.h>
 #include <vtkNamedColors.h>
 #include <vtkPolyDataNormals.h>
+#include <vtkIntArray.h>
 
 #include <iostream>
 #include <vtkPolyLine.h>
@@ -163,45 +164,57 @@ void VtkViewer::ShowShapeWithFeatureColor(
     vtkNew<vtkIntArray> featureIds;
     featureIds->SetName("FeatureType");
 
+    vtkNew<vtkPolyData> polyData;
+
     int pointOffset = 0;
 
+    // 遍历每个 Feature，渲染其包含的所有面
     for (const auto& f : features)
     {
-        TopLoc_Location loc;
-        Handle(Poly_Triangulation) tri = BRep_Tool::Triangulation(f.face, loc);
-        if (tri.IsNull()) continue;
+        const auto& faceList = f.faces();
+        if (faceList.empty()) continue;
 
-        gp_Trsf trsf = loc.Transformation();
-
-        for (int i = 1; i <= tri->NbNodes(); ++i)
+        for (const auto& face : faceList)
         {
-            gp_Pnt p = tri->Node(i).Transformed(trsf);
-            points->InsertNextPoint(p.X(), p.Y(), p.Z());
+            TopLoc_Location loc;
+            Handle(Poly_Triangulation) tri = BRep_Tool::Triangulation(face, loc);
+            if (tri.IsNull()) continue;
+
+            gp_Trsf trsf = loc.Transformation();
+
+            // 顶点
+            for (int i = 1; i <= tri->NbNodes(); ++i)
+            {
+                gp_Pnt p = tri->Node(i).Transformed(trsf);
+                points->InsertNextPoint(p.X(), p.Y(), p.Z());
+            }
+
+            // 三角形
+            for (int i = 1; i <= tri->NbTriangles(); ++i)
+            {
+                Poly_Triangle t = tri->Triangle(i);
+                int n1, n2, n3;
+                t.Get(n1, n2, n3);
+
+                vtkIdType c[3] = { pointOffset + n1 - 1,
+                                   pointOffset + n2 - 1,
+                                   pointOffset + n3 - 1 };
+
+                triangles->InsertNextCell(3, c);
+
+                // 每个单元标记为该 Feature 的类型
+                featureIds->InsertNextValue(static_cast<int>(f.type()));
+            }
+
+            pointOffset += tri->NbNodes();
         }
-
-        for (int i = 1; i <= tri->NbTriangles(); ++i)
-        {
-            Poly_Triangle t = tri->Triangle(i);
-            int n1, n2, n3;
-            t.Get(n1, n2, n3);
-
-            vtkIdType c[3] = { pointOffset + n1 - 1,
-                               pointOffset + n2 - 1,
-                               pointOffset + n3 - 1 };
-
-            triangles->InsertNextCell(3, c);
-            featureIds->InsertNextValue((int)f.type);
-        }
-
-        pointOffset += tri->NbNodes();
     }
 
-    vtkNew<vtkPolyData> polyData;
     polyData->SetPoints(points);
     polyData->SetPolys(triangles);
     polyData->GetCellData()->SetScalars(featureIds);
 
-    // ---- Add normals (critical fix) ----
+    // ---- Add normals ----
     vtkNew<vtkPolyDataNormals> normals;
     normals->SetInputData(polyData);
     normals->ComputePointNormalsOn();

@@ -1,14 +1,12 @@
-// FeatureExtractor.cpp
+
 #include "FeatureExtractor.h"
 #include "PlanarFaceDetectionStrategy.h"
 #include "CylinderDetectionStrategy.h"
 #include "FaceCollector.h"
+#include "FeatureType.h"
 #include <BRepAdaptor_Surface.hxx>
 
-
-
 using namespace PathForge::Topology;
-
 
 namespace PathForge {
     namespace Feature {
@@ -69,7 +67,8 @@ namespace PathForge {
             return result;
         }
 
-        FeatureType classifyFaceType(const TopoDS_Face& face)
+        // 将自由函数改为类成员实现（与头文件声明匹配）
+        FeatureType FeatureExtractor::classifyFaceType(const TopoDS_Face& face)
         {
             if (face.IsNull())
                 return FeatureType::Unknown;
