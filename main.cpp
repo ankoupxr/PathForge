@@ -1,59 +1,99 @@
-﻿#include "VtkViewer.h"
+#include "VtkViewer.h"
 #include "ModelLoader.h"
-#include "FaceCollector.h"
-#include "AdjacencyGraph.h"
-#include <FeatureExtractor.h>
+#include "Topology/FaceCollector.h"
+#include "Path/StrategyFactory.h"
+#include "Path/Toolpath.h"
 
+#include <TopoDS_Shape.hxx>
+#include <TopoDS_Face.hxx>
+#include <TopoDS_Wire.hxx>
+#include <BRep_Tool.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopAbs.hxx>
+#include <TopoDS.hxx>
+
+#include <iostream>
+
+using namespace PathForge;
 using namespace PathForge::Topology;
+using namespace PathForge::Path;
+
 
 int main(int argc, char* argv[])
 {
     ModelLoader loader;
     TopoDS_Shape shape;
 
-    //std::string file = "D:\\\\\\\\myself\\\\\\\\OCC\\\\\\\\Atypec.stp";
-    std::string file = "D:\\myself\\OCC\\mokuai_waike.stp";
+    std::string file = "D:\\myself\\PathForge\\kl.step";
     if (argc >= 2) file = argv[1];
 
     if (!loader.LoadFile(file, shape) || shape.IsNull())
     {
-        ::cerr << "无法加载模型文件: " << file << std::endl;
-		return -1;
+        std::cerr << "Failed to load model: " << file << std::endl;
+        return -1;
     }
 
-    //收集几何面
-    FaceCollector CollectFaces;
-	std::vector<TopoDS_Face> occFaces = CollectFaces.collectFaces(shape);
-    std::unordered_map<int, int> faceIndices = CollectFaces.indexFaces(occFaces);
+    FaceCollector collectFaces;
+    std::vector<TopoDS_Face> occFaces = collectFaces.collectFaces(shape);
 
-    // 构建面邻接图
-    AdjacencyGraph graph(shape);
+    if (occFaces.empty())
+    {
+        std::cerr << "No faces found in model" << std::endl;
+        return -1;
+    }
 
-    // Debug 输出邻接结果
-    auto faces = graph.getFaces();
-    auto adj = graph.getAdjacency();
+    TopoDS_Face targetFace = occFaces.front();
 
-    //for (auto& p : adj) {
-    //    std::cout << "Face " << p.first << " adjacent: ";
-    //    for (auto idx : p.second)
-    //        std::cout << idx << ", ";
-    //    std::cout << std::endl;
-    //}
+    TopoDS_Wire boundaryWire;
+    TopExp_Explorer exp(targetFace, TopAbs_WIRE);
+    if (exp.More())
+    {
+        boundaryWire = TopoDS::Wire(exp.Current());
+    }
 
-    FeatureExtractor extractor;
+    if (boundaryWire.IsNull())
+    {
+        std::cerr << "Failed to get boundary wire from face" << std::endl;
+        return -1;
+    }
 
-    auto features = extractor.detectFeatures(shape, graph);
+    PathStrategyContext ctx;
+    ctx.setBoundaryWire(boundaryWire);
+    ctx.setStockTop(5.0);
+    ctx.setModelTop(0.0);
+    ctx.setStepover(8.0);
+    ctx.setCuttingAngle(0.0);
+    ctx.setCuttingDirection(CuttingDirection::Zigzag);
+    ctx.setToolDiameter(10.0);
+    ctx.setFeedrate(1500.0);
+    ctx.setPlungeFeedrate(300.0);
+    ctx.setSafeZ(10.0);
+    ctx.setLeadInEnabled(true);
+    ctx.setLeadOutEnabled(true);
+    ctx.setLeadInLength(5.0);
+    ctx.setLeadOutLength(5.0);
 
-    //for (auto& f : features) {
-    //    std::cout << f.name << std::endl;
-    //}
+    auto strategy = PathStrategyFactory::create(StrategyType::FaceMilling2D);
+    if (!strategy)
+    {
+        std::cerr << "Failed to create strategy" << std::endl;
+        return -1;
+    }
+
+    strategy->setContext(ctx);
+
+    if (!strategy->validate())
+    {
+        std::cerr << "Strategy validation failed: " << strategy->getLastError() << std::endl;
+        return -1;
+    }
+
+    auto toolpath = strategy->generate();
 
 
-
-    // 2. VTK
     VtkViewer viewer;
-    viewer.SetWindowTitle("PathForge - Feature Visualization");
-    viewer.ShowShapeWithFeatureColor(shape, features);
+    viewer.SetWindowTitle("PathForge - 2D Face Milling");
+    viewer.ShowShapeAndToolpath(shape, *toolpath);
     viewer.StartInteraction();
 
     return 0;

@@ -23,11 +23,11 @@ bool ModelLoader::LoadFile(const std::string& filepath, TopoDS_Shape& outShape)
 {
     if (filepath.empty())
     {
-        m_lastError = "文件路径为空";
+        m_lastError = "File path is empty";
         return false;
     }
 
-    // 提取小写后缀
+    // Get lowercase extension
     std::string ext;
     size_t dotPos = filepath.find_last_of('.');
     if (dotPos != std::string::npos)
@@ -36,7 +36,7 @@ bool ModelLoader::LoadFile(const std::string& filepath, TopoDS_Shape& outShape)
     std::string lowerExt = ext;
     std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(), ::tolower);
 
-    outShape = TopoDS_Shape(); // 清空
+    outShape = TopoDS_Shape(); // Reset
 
     if (lowerExt == ".step" || lowerExt == ".stp")
         return LoadSTEP(filepath, outShape);
@@ -48,7 +48,7 @@ bool ModelLoader::LoadFile(const std::string& filepath, TopoDS_Shape& outShape)
         return LoadBRep(filepath, outShape);
     else
     {
-        m_lastError = "不支持的文件格式: " + ext;
+        m_lastError = "Unsupported file format: " + ext;
         return false;
     }
 }
@@ -60,7 +60,7 @@ bool ModelLoader::LoadSTEP(const std::string& filepath, TopoDS_Shape& shape)
 
     if (status != IFSelect_RetDone)
     {
-        m_lastError = "STEP 文件读取失败: " + filepath;
+        m_lastError = "STEP file read failed: " + filepath;
         return false;
     }
 
@@ -69,9 +69,9 @@ bool ModelLoader::LoadSTEP(const std::string& filepath, TopoDS_Shape& shape)
     shape = reader.OneShape();
 
     if (shape.IsNull())
-        m_lastError = "STEP 文件内容为空";
+        m_lastError = "STEP file content is empty";
     else
-        std::cout << "STEP 加载成功: " << filepath << " (共 " << reader.NbShapes() << " 个实体)\n";
+        std::cout << "STEP loaded successfully: " << filepath << " (with " << reader.NbShapes() << " shapes)\n";
 
     return !shape.IsNull();
 }
@@ -83,27 +83,27 @@ bool ModelLoader::LoadIGES(const std::string& filepath, TopoDS_Shape& shape)
 
     if (status != IFSelect_RetDone)
     {
-        m_lastError = "IGES 文件读取失败";
+        m_lastError = "IGES file read failed";
         return false;
     }
 
     reader.TransferRoots();
     shape = reader.OneShape();
 
-    std::cout << "IGES 加载成功: " << filepath << "\n";
+    std::cout << "IGES loaded successfully: " << filepath << "\n";
     return !shape.IsNull();
 }
 
 bool ModelLoader::LoadSTL(const std::string& filepath, TopoDS_Shape& shape)
 {
     StlAPI_Reader stlReader;
-    if (!stlReader.Read(shape,filepath.c_str()))
+    if (!stlReader.Read(shape, filepath.c_str()))
     {
-        m_lastError = "STL 文件读取失败";
+        m_lastError = "STL file read failed";
         return false;
     }
 
-    std::cout << "STL 网格加载成功: " << filepath << "\n";
+    std::cout << "STL model loaded successfully: " << filepath << "\n";
     return !shape.IsNull();
 }
 
@@ -111,11 +111,11 @@ bool ModelLoader::LoadBRep(const std::string& filepath, TopoDS_Shape& shape)
 {
     if (!BRepTools::Read(shape, filepath.c_str(), BRep_Builder()))
     {
-        m_lastError = "BRep 文件读取失败";
+        m_lastError = "BRep file read failed";
         return false;
     }
 
-    std::cout << "BRep 原生格式加载成功: " << filepath << "\n";
+    std::cout << "BRep raw format loaded successfully: " << filepath << "\n";
     return true;
 }
 
@@ -130,7 +130,7 @@ std::vector<TopoDS_Shape> ModelLoader::LoadFiles(const std::vector<std::string>&
         if (LoadFile(path, s) && !s.IsNull())
             shapes.push_back(s);
         else
-            std::cerr << "跳过失败文件: " << path << " (" << GetLastError() << ")\n";
+            std::cerr << "Failed to load file: " << path << " (" << GetLastError() << ")\n";
     }
 
     return shapes;

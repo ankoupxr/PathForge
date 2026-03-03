@@ -11,17 +11,16 @@ public:
     ModelLoader();
     ~ModelLoader() = default;
 
-    // ==================== 主要接口 ====================
-    // 加载单个文件（自动识别格式）
+    // Load single file, auto-detect format
     bool LoadFile(const std::string& filepath, TopoDS_Shape& outShape);
 
-    // 批量加载多个文件（返回所有成功加载的形状）
+    // Batch load multiple files
     std::vector<TopoDS_Shape> LoadFiles(const std::vector<std::string>& filepaths);
 
-    // 获取最后一次错误信息
+    // Get last error message
     std::string GetLastError() const { return m_lastError; }
 
-    // 支持的格式（可扩展）
+    // Supported file extensions
     static const std::vector<std::string> SupportedExtensions()
     {
         return { ".step", ".stp", ".STEP", ".STP",
@@ -31,7 +30,7 @@ public:
     }
 
 private:
-    // 各种格式的专用加载函数
+    // Format-specific load functions
     bool LoadSTEP(const std::string& filepath, TopoDS_Shape& shape);
     bool LoadIGES(const std::string& filepath, TopoDS_Shape& shape);
     bool LoadSTL(const std::string& filepath, TopoDS_Shape& shape);
