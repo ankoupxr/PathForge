@@ -1,4 +1,4 @@
-// FaceCollector.cpp
+﻿// FaceCollector.cpp
 #include "FaceCollector.h"
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>

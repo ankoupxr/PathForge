@@ -4,6 +4,11 @@ project(PathForge CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 使用 UTF-8 编码处理源文件
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 find_package(OpenCASCADE REQUIRED)
 
 find_package(VTK REQUIRED COMPONENTS

@@ -1,4 +1,4 @@
-#include "MathUtils.h"
+﻿#include "MathUtils.h"
 #include <cmath>
 
 namespace PathForge {

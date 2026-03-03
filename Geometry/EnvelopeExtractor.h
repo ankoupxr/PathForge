@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>

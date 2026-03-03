@@ -1,4 +1,4 @@
-#include "ShapeUtils.h"
+Ôªø#include "ShapeUtils.h"
 
 #include <BRepGProp.hxx>
 #include <GProp_GProps.hxx>
@@ -14,7 +14,7 @@ namespace PathForge {
         double ShapeUtils::faceArea(const TopoDS_Face& face) {
             GProp_GProps props;
             BRepGProp::SurfaceProperties(face, props);
-            return props.Mass(); // ±Ì√Êª˝
+            return props.Mass(); // Ë°®Èù¢ÁßØ
         }
 
         gp_Pnt ShapeUtils::faceCentroid(const TopoDS_Face& face) {

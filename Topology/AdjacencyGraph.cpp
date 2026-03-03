@@ -1,4 +1,4 @@
-#include "AdjacencyGraph.h"
+ï»¿#include "AdjacencyGraph.h"
 
 #include <TopTools_IndexedMapOfShape.hxx>
 #include <TopTools_IndexedDataMapOfShapeListOfShape.hxx>
@@ -22,7 +22,7 @@ namespace PathForge::Topology {
         m_adj.clear();
 
         // ============================================================
-        // 1. ÊÕ¼¯ Faces£¨IndexedMap ±£Ö¤Î¨Ò»ĞÔ£©
+        // 1. æ”¶é›† Facesï¼ˆIndexedMap ä¿è¯å”¯ä¸€æ€§ï¼‰
         // ============================================================
         TopTools_IndexedMapOfShape faceMap;
         TopExp::MapShapes(shape, TopAbs_FACE, faceMap);
@@ -32,11 +32,11 @@ namespace PathForge::Topology {
 
         for (int i = 1; i <= faceCount; ++i) {
             m_faces.push_back(TopoDS::Face(faceMap(i)));
-            m_adj[i - 1] = {};   // ÏÔÊ½³õÊ¼»¯ÁÚ½Ó±í
+            m_adj[i - 1] = {};   // æ˜¾å¼åˆå§‹åŒ–é‚»æ¥è¡¨
         }
 
         // ============================================================
-        // 2. Edge ¡ú Faces Ó³Éä
+        // 2. Edge â†’ Faces æ˜ å°„
         // ============================================================
         TopTools_IndexedDataMapOfShapeListOfShape edgeToFaces;
         TopExp::MapShapesAndAncestors(
@@ -47,7 +47,7 @@ namespace PathForge::Topology {
         );
 
         // ============================================================
-        // 3. ¹¹½¨ Face ÁÚ½Ó¹ØÏµ£¨Ë«Ïò£©
+        // 3. æ„å»º Face é‚»æ¥å…³ç³»ï¼ˆåŒå‘ï¼‰
         // ============================================================
         for (int i = 1; i <= faceCount; ++i) {
 

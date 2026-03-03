@@ -1,4 +1,4 @@
-// FaceBoundaryExtractor.cpp
+﻿// FaceBoundaryExtractor.cpp
 #include "FaceBoundaryExtractor.h"
 
 #include <TopoDS.hxx>

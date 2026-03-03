@@ -1,4 +1,4 @@
-#include "StrategyFactory.h"
+﻿#include "StrategyFactory.h"
 #include "Strategies/TwoDFaceMillingStrategy.h"
 
 namespace PathForge::Path {
@@ -12,8 +12,7 @@ PathStrategyPtr PathStrategyFactory::create(StrategyType type)
     case StrategyType::ContourMilling:
     case StrategyType::DrillCenter:
     case StrategyType::Engrave:
-        // 其他策略类型待实现
-        return nullptr;
+        // 鍏朵粬绛栫暐绫诲瀷寰呭疄鐜?        return nullptr;
     default:
         return nullptr;
     }
@@ -24,8 +23,7 @@ PathStrategyPtr PathStrategyFactory::create(const std::string& name)
     if (name == "2D Face Milling" || name == "FaceMilling2D") {
         return std::make_shared<TwoDFaceMillingStrategy>();
     }
-    // 其他策略类型待实现
-    return nullptr;
+    // 鍏朵粬绛栫暐绫诲瀷寰呭疄鐜?    return nullptr;
 }
 
 std::string PathStrategyFactory::strategyName(StrategyType type)
@@ -51,7 +49,7 @@ StrategyType PathStrategyFactory::strategyType(const std::string& name)
     if (name == "2D Face Milling" || name == "FaceMilling2D") {
         return StrategyType::FaceMilling2D;
     }
-    return StrategyType::FaceMilling2D; // 默认
+    return StrategyType::FaceMilling2D; // 榛樿
 }
 
 } // namespace PathForge::Path

@@ -1,4 +1,4 @@
-// FaceBoundaryExtractor.h
+﻿// FaceBoundaryExtractor.h
 #pragma once
 
 #include <TopoDS_Face.hxx>

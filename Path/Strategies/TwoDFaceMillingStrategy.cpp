@@ -1,5 +1,4 @@
-#include "TwoDFaceMillingStrategy.h"
-#include "PathStrategy.h"
+﻿#include "TwoDFaceMillingStrategy.h"
 
 #include <TopoDS.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -27,6 +26,7 @@ namespace PathForge {
 namespace Path {
 
 TwoDFaceMillingStrategy::TwoDFaceMillingStrategy()
+    : PathStrategy(PathStrategyContext())
 {
 }
 
@@ -52,17 +52,17 @@ std::string TwoDFaceMillingStrategy::getDescription() const
 
 bool TwoDFaceMillingStrategy::validate() const
 {
-    if (m_context.getBoundaryWire().IsNull()) {
+    if (getContext().getBoundaryWire().IsNull()) {
         m_lastError = "Boundary wire is null";
         return false;
     }
 
-    if (m_context.getStepover() <= 0) {
+    if (getContext().getStepover() <= 0) {
         m_lastError = "Stepover must be positive";
         return false;
     }
 
-    if (m_context.getDepth() < 0) {
+    if (getContext().getDepth() < 0) {
         m_lastError = "Depth must be non-negative (stock top must be above model top)";
         return false;
     }
@@ -78,23 +78,23 @@ ToolpathPtr TwoDFaceMillingStrategy::generate()
 
     auto toolpath = std::make_shared<Toolpath>("2D Face Milling");
 
-    const auto& boundary = m_context.getBoundaryWire();
-    double angleRad = m_context.getCuttingAngle() * M_PI / 180.0;
-    double effectiveStepover = m_context.getStepover();
+    const auto& boundary = getContext().getBoundaryWire();
+    double angleRad = getContext().getCuttingAngle() * M_PI / 180.0;
+    double effectiveStepover = getContext().getStepover();
     
     if (m_toolRadiusCompensation) {
-        effectiveStepover = m_context.getStepover() - m_context.getToolDiameter() * 0.4;
+        effectiveStepover = getContext().getStepover() - getContext().getToolDiameter() * 0.4;
         if (effectiveStepover <= 0) {
-            effectiveStepover = m_context.getStepover();
+            effectiveStepover = getContext().getStepover();
         }
     }
 
     BoundingBox bbox = computeBoundingBox(boundary);
     std::vector<Point2D> boundaryPoints = extractPoints2D(boundary);
 
-    double depth = m_context.getDepth();
-    double currentZ = m_context.getStockTop();
-    double modelTop = m_context.getModelTop();
+    double depth = getContext().getDepth();
+    double currentZ = getContext().getStockTop();
+    double modelTop = getContext().getModelTop();
 
     while (currentZ > modelTop) {
         double passDepth = std::min(m_stepDown, currentZ - modelTop);
@@ -103,12 +103,12 @@ ToolpathPtr TwoDFaceMillingStrategy::generate()
 
         std::vector<Point2D> lines;
         
-        if (m_context.getCuttingDirection() == CuttingDirection::Zigzag) {
+        if (getContext().getCuttingDirection() == CuttingDirection::Zigzag) {
             lines = generateZigzagLines(bbox, effectiveStepover, angleRad);
         } else {
             bool forward = true;
             lines = generateOneDirectionLines(bbox, effectiveStepover, angleRad, forward);
-            if (m_context.getCuttingDirection() == CuttingDirection::Reverse) {
+            if (getContext().getCuttingDirection() == CuttingDirection::Reverse) {
                 std::reverse(lines.begin(), lines.end());
             }
         }
@@ -121,12 +121,12 @@ ToolpathPtr TwoDFaceMillingStrategy::generate()
             const auto& p2 = clippedLines[i + 1];
             
             PathPoint pathPt1(gp_Pnt(p1.x, p1.y, cuttingZ), MoveType::Linear);
-            pathPt1.feedrate = m_context.getFeedrate();
+            pathPt1.feedrate = getContext().getFeedrate();
             pathPt1.motionType = MotionType::Cutting;
             toolpath->addPoint(pathPt1);
 
             PathPoint pathPt2(gp_Pnt(p2.x, p2.y, cuttingZ), MoveType::Linear);
-            pathPt2.feedrate = m_context.getFeedrate();
+            pathPt2.feedrate = getContext().getFeedrate();
             pathPt2.motionType = MotionType::Cutting;
             toolpath->addPoint(pathPt2);
         }
@@ -255,7 +255,7 @@ std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::extractPo
     if (points.size() > 1) {
         std::vector<Point2D> uniquePoints;
         uniquePoints.push_back(points[0]);
-        double tolerance = m_context.getTolerance();
+        double tolerance = getContext().getTolerance();
         for (size_t i = 1; i < points.size(); ++i) {
             double dx = points[i].x - uniquePoints.back().x;
             double dy = points[i].y - uniquePoints.back().y;
@@ -336,7 +336,7 @@ std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::clipLines
     }
     
     std::vector<Point2D> clippedLines;
-    double tolerance = m_context.getTolerance();
+    double tolerance = getContext().getTolerance();
     
     for (size_t i = 0; i + 1 < lines.size(); i += 2) {
         Point2D p1 = lines[i];
@@ -397,8 +397,8 @@ void TwoDFaceMillingStrategy::addLeadInOut(
     PathPoint& startPoint, PathPoint& endPoint,
     const Point2D& direction, bool addLeadIn, bool addLeadOut)
 {
-    if (addLeadIn && m_context.isLeadInEnabled()) {
-        double length = m_context.getLeadInLength();
+    if (addLeadIn && getContext().isLeadInEnabled()) {
+        double length = getContext().getLeadInLength();
         gp_Vec leadInVec(-direction.x * length, -direction.y * length, 0);
 
         gp_XYZ newStartPos = startPoint.position.XYZ() - leadInVec.XYZ();
@@ -408,8 +408,8 @@ void TwoDFaceMillingStrategy::addLeadInOut(
         startPoint.motionType = MotionType::LeadIn;
     }
 
-    if (addLeadOut && m_context.isLeadOutEnabled()) {
-        double length = m_context.getLeadOutLength();
+    if (addLeadOut && getContext().isLeadOutEnabled()) {
+        double length = getContext().getLeadOutLength();
         gp_Vec leadOutVec(direction.x * length, direction.y * length, 0);
 
         gp_XYZ newEndPos = endPoint.position.XYZ() + leadOutVec.XYZ();
@@ -422,3 +422,4 @@ void TwoDFaceMillingStrategy::addLeadInOut(
 
 }
 }
+

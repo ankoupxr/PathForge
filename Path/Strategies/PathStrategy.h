@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 #include <memory>
@@ -12,8 +12,8 @@
 
 namespace PathForge::Path {
 
-// 注意：这是一个独立的策略类，用于 2D 轮廓加工
-// 与 Strategy.h 中的 PathStrategy 基类不同
+// 娉ㄦ剰锛氳繖鏄竴涓嫭绔嬬殑绛栫暐绫伙紝鐢ㄤ簬 2D 杞粨鍔犲伐
+// 涓?Strategy.h 涓殑 PathStrategy 鍩虹被涓嶅悓
 
 class ContourPathStrategy {
 public:

@@ -1,4 +1,4 @@
-#include "Projector.h"
+﻿#include "Projector.h"
 #include <cmath>
 #include <algorithm>
 #include <limits>

@@ -1,4 +1,4 @@
-#include "EnvelopeExtractor.h"
+﻿#include "EnvelopeExtractor.h"
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepAlgoAPI_Fuse.hxx>

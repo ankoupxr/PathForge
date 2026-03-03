@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 #include <string>
@@ -7,6 +7,7 @@
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
 #include <TopoDS_Wire.hxx>
+#include <TopoDS_Edge.hxx>
 
 namespace PathForge::Path {
 
@@ -75,11 +76,19 @@ public:
     bool isEmpty() const;
     size_t pointCount() const;
 
-    TopoDS_Wire toWire() const;
+    // Edge 鎿嶄綔鏂规硶
+    void addEdge(const TopoDS_Edge& edge);
+    void addEdges(const std::vector<TopoDS_Edge>& edges);
+    const std::vector<TopoDS_Edge>& edges() const;
+    std::vector<TopoDS_Edge>& edges();
+    void clearEdges();
+    bool hasEdges() const;
+    size_t edgeCount() const;
 
 private:
     std::string m_name;
     std::vector<PathPoint> m_points;
+    std::vector<TopoDS_Edge> m_edges;
     double m_depth = 0.0;
     gp_Pnt m_startPoint;
     gp_Pnt m_endPoint;

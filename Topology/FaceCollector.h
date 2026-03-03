@@ -1,4 +1,4 @@
-// FaceCollector.h
+﻿// FaceCollector.h
 #pragma once
 
 #include <vector>

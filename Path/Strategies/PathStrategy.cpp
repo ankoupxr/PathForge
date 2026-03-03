@@ -1,4 +1,4 @@
-#include "PathStrategy.h"
+﻿#include "PathStrategy.h"
 #include <cmath>
 #include <algorithm>
 

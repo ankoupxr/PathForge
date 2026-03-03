@@ -1,4 +1,4 @@
-#include "Toolpath.h"
+﻿#include "Toolpath.h"
 
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -91,5 +91,34 @@ void Toolpath::clear() {
 
 bool Toolpath::isEmpty() const { return m_points.empty(); }
 size_t Toolpath::pointCount() const { return m_points.size(); }
+
+// Edge 鎿嶄綔鏂规硶
+void Toolpath::addEdge(const TopoDS_Edge& edge) {
+    m_edges.push_back(edge);
+}
+
+void Toolpath::addEdges(const std::vector<TopoDS_Edge>& edges) {
+    m_edges.insert(m_edges.end(), edges.begin(), edges.end());
+}
+
+const std::vector<TopoDS_Edge>& Toolpath::edges() const {
+    return m_edges;
+}
+
+std::vector<TopoDS_Edge>& Toolpath::edges() {
+    return m_edges;
+}
+
+void Toolpath::clearEdges() {
+    m_edges.clear();
+}
+
+bool Toolpath::hasEdges() const {
+    return !m_edges.empty();
+}
+
+size_t Toolpath::edgeCount() const {
+    return m_edges.size();
+}
 
 }
