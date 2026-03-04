@@ -18,7 +18,10 @@ find_package(VTK REQUIRED COMPONENTS
     RenderingCore
     RenderingOpenGL2
     RenderingFreeType
+    RenderingAnnotation
+    RenderingUI
     InteractionStyle
+    InteractionImage
     FiltersCore
     IOPLY
     IOXML
@@ -72,7 +75,10 @@ target_link_libraries(PathForge PRIVATE
     VTK::RenderingCore
     VTK::RenderingOpenGL2
     VTK::RenderingFreeType
+    VTK::RenderingAnnotation
+    VTK::RenderingUI
     VTK::InteractionStyle
+    VTK::InteractionImage
     VTK::FiltersCore
     VTK::IOPLY
     VTK::IOXML

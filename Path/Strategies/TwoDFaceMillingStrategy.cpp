@@ -21,6 +21,13 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <BRepOffsetAPI_MakeOffset.hxx>
+#include <BRepBndLib.hxx>
+#include <Bnd_Box.hxx>
+#include <BRepAdaptor_Surface.hxx>
+#include <Geom_Plane.hxx>
+#include <gp_Pln.hxx>
+#include <gp_Ax3.hxx>
 
 namespace PathForge {
 namespace Path {
@@ -81,7 +88,7 @@ ToolpathPtr TwoDFaceMillingStrategy::generate()
     const auto& boundary = getContext().getBoundaryWire();
     double angleRad = getContext().getCuttingAngle() * M_PI / 180.0;
     double effectiveStepover = getContext().getStepover();
-    
+
     if (m_toolRadiusCompensation) {
         effectiveStepover = getContext().getStepover() - getContext().getToolDiameter() * 0.4;
         if (effectiveStepover <= 0) {
@@ -89,47 +96,37 @@ ToolpathPtr TwoDFaceMillingStrategy::generate()
         }
     }
 
+    BRepOffsetAPI_MakeOffset offsetMaker(boundary, GeomAbs_Arc);
+    offsetMaker.Perform(5.0);
+    TopoDS_Shape offsetShape = offsetMaker.Shape();
+    m_offsetWire = TopoDS::Wire(offsetShape);
+
     BoundingBox bbox = computeBoundingBox(boundary);
-    std::vector<Point2D> boundaryPoints = extractPoints2D(boundary);
 
     double depth = getContext().getDepth();
     double currentZ = getContext().getStockTop();
     double modelTop = getContext().getModelTop();
 
-    while (currentZ > modelTop) {
-        double passDepth = std::min(m_stepDown, currentZ - modelTop);
-        currentZ -= passDepth;
-        double cuttingZ = currentZ;
+    std::vector<gp_Pnt> lines;
 
-        std::vector<Point2D> lines;
-        
-        if (getContext().getCuttingDirection() == CuttingDirection::Zigzag) {
-            lines = generateZigzagLines(bbox, effectiveStepover, angleRad);
-        } else {
-            bool forward = true;
-            lines = generateOneDirectionLines(bbox, effectiveStepover, angleRad, forward);
-            if (getContext().getCuttingDirection() == CuttingDirection::Reverse) {
-                std::reverse(lines.begin(), lines.end());
-            }
+    if (getContext().getCuttingDirection() == CuttingDirection::Zigzag) {
+        lines = generateZigzagLines(bbox, effectiveStepover, angleRad);
+    }
+    else {
+        bool forward = true;
+        lines = generateOneDirectionLines(bbox, effectiveStepover, angleRad, forward);
+        if (getContext().getCuttingDirection() == CuttingDirection::Reverse) {
+            std::reverse(lines.begin(), lines.end());
         }
+    }
 
-        auto clippedLines = clipLinesToBoundary(lines, boundary);
 
-        // clippedLines is a vector of Point2D, where each pair of points forms a line segment
-        for (size_t i = 0; i + 1 < clippedLines.size(); i += 2) {
-            const auto& p1 = clippedLines[i];
-            const auto& p2 = clippedLines[i + 1];
-            
-            PathPoint pathPt1(gp_Pnt(p1.x, p1.y, cuttingZ), MoveType::Linear);
-            pathPt1.feedrate = getContext().getFeedrate();
-            pathPt1.motionType = MotionType::Cutting;
-            toolpath->addPoint(pathPt1);
-
-            PathPoint pathPt2(gp_Pnt(p2.x, p2.y, cuttingZ), MoveType::Linear);
-            pathPt2.feedrate = getContext().getFeedrate();
-            pathPt2.motionType = MotionType::Cutting;
-            toolpath->addPoint(pathPt2);
-        }
+    for (size_t i = 0; i < lines.size(); i++) {
+        const auto& p1 = lines[i];
+        PathPoint pathPt1(gp_Pnt(p1.X(), p1.Y(), p1.Z()), MoveType::Linear);
+        pathPt1.feedrate = getContext().getFeedrate();
+        pathPt1.motionType = MotionType::Cutting;
+        toolpath->addPoint(pathPt1);
     }
 
     return toolpath;
@@ -178,8 +175,8 @@ double TwoDFaceMillingStrategy::getStepDown() const
 TwoDFaceMillingStrategy::BoundingBox TwoDFaceMillingStrategy::computeBoundingBox(const TopoDS_Wire& wire)
 {
     BoundingBox bbox;
-    bbox.minX = bbox.minY = 1e10;
-    bbox.maxX = bbox.maxY = -1e10;
+    bbox.minX = bbox.minY = bbox.minZ = 1e10;
+    bbox.maxX = bbox.maxY = bbox.maxZ = -1e10;
 
     TopExp_Explorer explorer(wire, TopAbs_EDGE);
     while (explorer.More()) {
@@ -195,6 +192,8 @@ TwoDFaceMillingStrategy::BoundingBox TwoDFaceMillingStrategy::computeBoundingBox
             bbox.maxX = std::max({bbox.maxX, p1.X(), p2.X()});
             bbox.minY = std::min({bbox.minY, p1.Y(), p2.Y()});
             bbox.maxY = std::max({bbox.maxY, p1.Y(), p2.Y()});
+            bbox.minZ = std::min({bbox.minZ, p1.Z(), p2.Z()});
+            bbox.maxZ = std::max({bbox.maxZ, p1.Z(), p2.Z()});
         }
         explorer.Next();
     }
@@ -202,9 +201,9 @@ TwoDFaceMillingStrategy::BoundingBox TwoDFaceMillingStrategy::computeBoundingBox
     return bbox;
 }
 
-std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::extractPoints2D(const TopoDS_Wire& wire)
+std::vector<gp_Pnt> TwoDFaceMillingStrategy::extractPoints2D(const TopoDS_Wire& wire)
 {
-    std::vector<Point2D> points;
+    std::vector<gp_Pnt> points;
 
     TopExp_Explorer explorer(wire, TopAbs_EDGE);
     while (explorer.More()) {
@@ -219,19 +218,19 @@ std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::extractPo
                     Handle(Geom_TrimmedCurve)::DownCast(curve);
                 baseCurve = trimmed->BasisCurve();
             }
-            
+
             if (baseCurve->DynamicType() == STANDARD_TYPE(Geom_Line)) {
                 gp_Pnt p1 = curve->Value(first);
                 gp_Pnt p2 = curve->Value(last);
-                points.push_back(Point2D(p1.X(), p1.Y()));
-                points.push_back(Point2D(p2.X(), p2.Y()));
+                points.push_back(p1);
+                points.push_back(p2);
             }
             else if (baseCurve->DynamicType() == STANDARD_TYPE(Geom_Circle)) {
                 int numSegments = 36;
                 for (int i = 0; i <= numSegments; ++i) {
                     double t = first + (last - first) * i / numSegments;
                     gp_Pnt p = curve->Value(t);
-                    points.push_back(Point2D(p.X(), p.Y()));
+                    points.push_back(p);
                 }
             }
             else if (baseCurve->DynamicType() == STANDARD_TYPE(Geom_BSplineCurve)) {
@@ -239,167 +238,202 @@ std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::extractPo
                 for (int i = 0; i <= numSegments; ++i) {
                     double t = first + (last - first) * i / numSegments;
                     gp_Pnt p = curve->Value(t);
-                    points.push_back(Point2D(p.X(), p.Y()));
+                    points.push_back(p);
                 }
             }
             else {
                 gp_Pnt p1 = curve->Value(first);
                 gp_Pnt p2 = curve->Value(last);
-                points.push_back(Point2D(p1.X(), p1.Y()));
-                points.push_back(Point2D(p2.X(), p2.Y()));
+                points.push_back(p1);
+                points.push_back(p2);
             }
         }
         explorer.Next();
     }
-    
+
     if (points.size() > 1) {
-        std::vector<Point2D> uniquePoints;
+        std::vector<gp_Pnt> uniquePoints;
         uniquePoints.push_back(points[0]);
         double tolerance = getContext().getTolerance();
         for (size_t i = 1; i < points.size(); ++i) {
-            double dx = points[i].x - uniquePoints.back().x;
-            double dy = points[i].y - uniquePoints.back().y;
+            double dx = points[i].X() - uniquePoints.back().X();
+            double dy = points[i].Y() - uniquePoints.back().Y();
             if (std::sqrt(dx*dx + dy*dy) > tolerance) {
                 uniquePoints.push_back(points[i]);
             }
         }
         return uniquePoints;
     }
-    
+
     return points;
 }
 
-std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::generateZigzagLines(
+std::vector<gp_Pnt> TwoDFaceMillingStrategy::generateZigzagLines(
     const BoundingBox& bbox, double stepover, double angle)
 {
-    std::vector<Point2D> lines;
-    
-    double diag = std::sqrt(std::pow(bbox.maxX - bbox.minX, 2) + std::pow(bbox.maxY - bbox.minY, 2));
-    double extend = diag * 0.1;
-    
-    double cosA = std::cos(angle);
-    double sinA = std::sin(angle);
-    
-    double ux = cosA;
-    double uy = sinA;
-    double vx = -sinA;
-    double vy = cosA;
-    
-    double vMin = -extend;
-    double vMax = (bbox.maxX - bbox.minX) * std::abs(vx) + (bbox.maxY - bbox.minY) * std::abs(vy) + extend;
-    
-    for (double v = vMin; v <= vMax; v += stepover) {
-        Point2D p1, p2;
-        
-        if (std::abs(sinA) > 0.001) {
-            double t1 = (bbox.minX - extend - v * vx) / ux;
-            double t2 = (bbox.maxX + extend - v * vx) / ux;
-            
-            p1 = Point2D(bbox.minX - extend + ux * t1, v + vx * t1);
-            p2 = Point2D(bbox.minX - extend + ux * t2, v + vx * t2);
-        } else {
-            double t1 = (bbox.minY - extend - v * vy) / uy;
-            double t2 = (bbox.maxY + extend - v * vy) / uy;
-            
-            p1 = Point2D(v + vx * t1, bbox.minY - extend + uy * t1);
-            p2 = Point2D(v + vx * t2, bbox.minY - extend + uy * t2);
-        }
-        
-        lines.push_back(p1);
-        lines.push_back(p2);
+    std::vector<gp_Pnt> lines;
+
+    // 使用 OCC 计算 m_offsetWire 的包围盒
+    Bnd_Box offsetWireBbox;
+    if (!m_offsetWire.IsNull()) {
+        BRepBndLib::Add(m_offsetWire, offsetWireBbox);
     }
-    
+
+    Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
+    offsetWireBbox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+
+
+    double vMin, vMax;
+    int numPasses;
+
+    if (abs(bbox.maxZ - bbox.minZ) < 1E-10) {
+        // XY 平面
+        vMin = bbox.minX;
+        vMax = bbox.maxX;
+        numPasses = static_cast<int>((vMax - vMin) / stepover) + 1;
+    }
+    else if (abs(bbox.minY - bbox.maxY) < 1E-10) {
+        // XZ 平面
+        vMin = bbox.minZ;
+        vMax = bbox.maxZ;
+        numPasses = static_cast<int>((vMax - vMin) / stepover) + 1;
+    }
+    else if (abs(bbox.minX - bbox.maxX) < 1E-10) {
+        // YZ 平面
+        vMin = bbox.minY;
+        vMax = bbox.maxY;
+        numPasses = static_cast<int>((vMax - vMin) / stepover) + 1;
+    }
+    else {
+        // 默认 XY 平面
+        vMin = bbox.minX;
+        vMax = bbox.maxX;
+        numPasses = static_cast<int>((vMax - vMin) / stepover) + 1;
+    }
+
+    // 生成往复式路径
+    bool forward = true;
+    for (int i = 0; i < numPasses; ++i) {
+        double v = vMin + i * stepover;
+
+        gp_Pnt p1, p2;
+
+        if (abs(bbox.maxZ - bbox.minZ) < 1E-10) 
+        {
+            // XY 平面
+            p1 = gp_Pnt(v, yMax, bbox.minZ);
+            p2 = gp_Pnt(v, yMin, bbox.minZ);
+        }
+        else if (abs(bbox.minY - bbox.maxY) < 1E-10) 
+        {
+            // XZ 平面
+            p1 = gp_Pnt(xMax, bbox.maxY, v);
+            p2 = gp_Pnt(xMin, bbox.maxY, v);
+        }
+        else if (abs(bbox.minX - bbox.maxX) < 1E-10) 
+        {
+            // YZ 平面
+            p1 = gp_Pnt(bbox.maxX, v, zMax);
+            p2 = gp_Pnt(bbox.maxX, v, zMin);
+        }
+        else 
+        {
+            // 默认 XY 平面
+            p1 = gp_Pnt(v, yMax, bbox.minZ);
+            p2 = gp_Pnt(v, yMin, bbox.minZ);
+        }
+
+        //if (i != 0 && i != numPasses - 1)
+        //{
+        //    if (forward) {
+        //        lines.push_back(lines.back());
+        //        lines.push_back(p2);
+        //    }
+        //    else {
+        //        lines.push_back(lines.back());
+        //        lines.push_back(p1);
+        //    }
+        //}
+
+        // 根据方向添加点
+        if (forward) {
+            lines.push_back(p1);
+            lines.push_back(p2);
+        } else {
+            lines.push_back(p2);
+            lines.push_back(p1);
+        }
+
+
+        // 切换方向
+        forward = !forward;
+    }
+
     return lines;
 }
 
-std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::generateOneDirectionLines(
+std::vector<gp_Pnt> TwoDFaceMillingStrategy::generateOneDirectionLines(
     const BoundingBox& bbox, double stepover, double angle, bool forward)
 {
     auto lines = generateZigzagLines(bbox, stepover, angle);
-    
+
     if (!forward) {
         for (size_t i = 0; i < lines.size(); i += 2) {
             std::swap(lines[i], lines[i + 1]);
         }
     }
-    
+
     return lines;
 }
 
-std::vector<TwoDFaceMillingStrategy::Point2D> TwoDFaceMillingStrategy::clipLinesToBoundary(
-    const std::vector<Point2D>& lines, const TopoDS_Wire& boundary)
-{
-    std::vector<Point2D> boundaryPoints = extractPoints2D(boundary);
-    
-    if (boundaryPoints.empty()) {
-        return lines;
-    }
-    
-    std::vector<Point2D> clippedLines;
-    double tolerance = getContext().getTolerance();
-    
-    for (size_t i = 0; i + 1 < lines.size(); i += 2) {
-        Point2D p1 = lines[i];
-        Point2D p2 = lines[i + 1];
-        
-        if (pointInPolygon(p1, boundaryPoints) && pointInPolygon(p2, boundaryPoints)) {
-            clippedLines.push_back(p1);
-            clippedLines.push_back(p2);
-        } else if (pointInPolygon(p1, boundaryPoints) || pointInPolygon(p2, boundaryPoints)) {
-            clippedLines.push_back(p1);
-            clippedLines.push_back(p2);
-        }
-    }
-    
-    return clippedLines;
-}
 
-TwoDFaceMillingStrategy::Point2D TwoDFaceMillingStrategy::lineIntersection(
-    const Point2D& p1, const Point2D& p2,
-    const Point2D& p3, const Point2D& p4)
+gp_Pnt TwoDFaceMillingStrategy::lineIntersection(
+    const gp_Pnt& p1, const gp_Pnt& p2,
+    const gp_Pnt& p3, const gp_Pnt& p4)
 {
-    double denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
-    
+    double denom = (p1.X() - p2.X()) * (p3.Y() - p4.Y()) - (p1.Y() - p2.Y()) * (p3.X() - p4.X());
+
     if (std::abs(denom) < 1e-10) {
         return p1;
     }
-    
-    double t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
-    
-    return Point2D(
-        p1.x + t * (p2.x - p1.x),
-        p1.y + t * (p2.y - p1.y)
+
+    double t = ((p1.X() - p3.X()) * (p3.Y() - p4.Y()) - (p1.Y() - p3.Y()) * (p3.X() - p4.X())) / denom;
+
+    return gp_Pnt(
+        p1.X() + t * (p2.X() - p1.X()),
+        p1.Y() + t * (p2.Y() - p1.Y()),
+        p1.Z()
     );
 }
 
 bool TwoDFaceMillingStrategy::pointInPolygon(
-    const Point2D& p, const std::vector<Point2D>& polygon)
+    const gp_Pnt& p, const std::vector<gp_Pnt>& polygon)
 {
     if (polygon.size() < 3) return false;
-    
+
     int crossings = 0;
     size_t n = polygon.size();
-    
+
     for (size_t i = 0; i < n; ++i) {
-        const Point2D& p1 = polygon[i];
-        const Point2D& p2 = polygon[(i + 1) % n];
-        
-        if (((p1.y <= p.y && p.y < p2.y) || (p2.y <= p.y && p.y < p1.y)) &&
-            (p.x < (p2.x - p1.x) * (p.y - p1.y) / (p2.y - p1.y) + p1.x)) {
+        const gp_Pnt& p1 = polygon[i];
+        const gp_Pnt& p2 = polygon[(i + 1) % n];
+
+        if (((p1.Y() <= p.Y() && p.Y() < p2.Y()) || (p2.Y() <= p.Y() && p.Y() < p1.Y())) &&
+            (p.X() < (p2.X() - p1.X()) * (p.Y() - p1.Y()) / (p2.Y() - p1.Y()) + p1.X())) {
             crossings = 1 - crossings;
         }
     }
-    
+
     return crossings == 1;
 }
 
 void TwoDFaceMillingStrategy::addLeadInOut(
     PathPoint& startPoint, PathPoint& endPoint,
-    const Point2D& direction, bool addLeadIn, bool addLeadOut)
+    const gp_Dir& direction, bool addLeadIn, bool addLeadOut)
 {
     if (addLeadIn && getContext().isLeadInEnabled()) {
         double length = getContext().getLeadInLength();
-        gp_Vec leadInVec(-direction.x * length, -direction.y * length, 0);
+        gp_Vec leadInVec(-direction.X() * length, -direction.Y() * length, 0);
 
         gp_XYZ newStartPos = startPoint.position.XYZ() - leadInVec.XYZ();
         startPoint.position.SetX(newStartPos.X());
@@ -410,7 +444,7 @@ void TwoDFaceMillingStrategy::addLeadInOut(
 
     if (addLeadOut && getContext().isLeadOutEnabled()) {
         double length = getContext().getLeadOutLength();
-        gp_Vec leadOutVec(direction.x * length, direction.y * length, 0);
+        gp_Vec leadOutVec(direction.X() * length, direction.Y() * length, 0);
 
         gp_XYZ newEndPos = endPoint.position.XYZ() + leadOutVec.XYZ();
         endPoint.position.SetX(newEndPos.X());
@@ -422,4 +456,3 @@ void TwoDFaceMillingStrategy::addLeadInOut(
 
 }
 }
-

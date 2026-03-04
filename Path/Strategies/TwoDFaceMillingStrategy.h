@@ -33,45 +33,40 @@ public:
 
 private:
     struct Line2D {
-        double x1, y1, x2, y2;
+        double x1, y1, x2, y2, z1, z2;
     };
 
-    struct Point2D {
-        double x, y;
-        Point2D() : x(0), y(0) {}
-        Point2D(double x_, double y_) : x(x_), y(y_) {}
-    };
 
     struct BoundingBox {
-        double minX, maxX, minY, maxY;
+        double minX, maxX, minY, maxY, minZ, maxZ;
     };
 
     BoundingBox computeBoundingBox(const TopoDS_Wire& wire);
-    std::vector<Point2D> extractPoints2D(const TopoDS_Wire& wire);
+    std::vector<gp_Pnt> extractPoints2D(const TopoDS_Wire& wire);
     
-    std::vector<Point2D> generateZigzagLines(const BoundingBox& bbox, 
-                                              double stepover, 
+    std::vector<gp_Pnt> generateZigzagLines(const BoundingBox& bbox,
+                                              double stepover,
                                               double angle);
-    std::vector<Point2D> generateOneDirectionLines(const BoundingBox& bbox,
+    std::vector<gp_Pnt> generateOneDirectionLines(const BoundingBox& bbox,
                                                       double stepover,
                                                       double angle,
                                                       bool forward);
-    
-    std::vector<Point2D> clipLinesToBoundary(const std::vector<Point2D>& lines,
-                                               const TopoDS_Wire& boundary);
-    
-    Point2D lineIntersection(const Point2D& p1, const Point2D& p2,
-                               const Point2D& p3, const Point2D& p4);
-    
-    bool pointInPolygon(const Point2D& p, const std::vector<Point2D>& polygon);
-    
+
+
+    gp_Pnt lineIntersection(const gp_Pnt& p1, const gp_Pnt& p2,
+                               const gp_Pnt& p3, const gp_Pnt& p4);
+
+    bool pointInPolygon(const gp_Pnt& p, const std::vector<gp_Pnt>& polygon);
+
     void addLeadInOut(PathPoint& startPoint, PathPoint& endPoint,
-                       const Point2D& direction, bool addLeadIn, bool addLeadOut);
+                       const gp_Dir& direction, bool addLeadIn, bool addLeadOut);
 
     bool m_toolRadiusCompensation = true;
     double m_overlap = 0.0;
     bool m_multiplePasses = false;
     double m_stepDown = 2.0;
+
+	TopoDS_Wire m_offsetWire;
 };
 
 }

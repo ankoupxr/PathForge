@@ -18,6 +18,8 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkLookupTable.h>
 #include <vtkActor.h>
+#include <vtkAxesActor.h>
+#include <vtkAnnotatedCubeActor.h>
 
 #include <vector>
 #include <string>
@@ -45,6 +47,8 @@ public:
 
     void ShowShapeAndToolpath(const TopoDS_Shape& shape, const PathForge::Path::Toolpath& toolpath);
 
+    void ShowAxes(bool visible = true);
+
 private:
     void ConvertOccToVtk(const TopoDS_Shape& shape);
 
@@ -53,4 +57,5 @@ private:
     vtkSmartPointer<vtkRenderWindowInteractor> m_interactor;
     vtkSmartPointer<vtkActor>                 m_actor;
     vtkSmartPointer<vtkPolyDataMapper>        m_mapper;
+    vtkSmartPointer<vtkAxesActor>             m_axesActor;
 };

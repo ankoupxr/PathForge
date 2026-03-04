@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    TopoDS_Face targetFace = occFaces.front();
+    TopoDS_Face targetFace = occFaces.back();
 
     TopoDS_Wire boundaryWire;
     TopExp_Explorer exp(targetFace, TopAbs_WIRE);
@@ -59,9 +59,10 @@ int main(int argc, char* argv[])
 
     PathStrategyContext ctx;
     ctx.setBoundaryWire(boundaryWire);
+	ctx.setBoundaryFace(targetFace);
     ctx.setStockTop(5.0);
     ctx.setModelTop(0.0);
-    ctx.setStepover(8.0);
+    ctx.setStepover(5.0);
     ctx.setCuttingAngle(0.0);
     ctx.setCuttingDirection(CuttingDirection::Zigzag);
     ctx.setToolDiameter(10.0);
@@ -94,6 +95,7 @@ int main(int argc, char* argv[])
     VtkViewer viewer;
     viewer.SetWindowTitle("PathForge - 2D Face Milling");
     viewer.ShowShapeAndToolpath(shape, *toolpath);
+	viewer.ShowAxes(true);
     viewer.StartInteraction();
 
     return 0;

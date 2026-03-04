@@ -26,6 +26,11 @@
 #include <iostream>
 #include <vtkPolyLine.h>
 #include <cmath>
+#include <vtkAxesActor.h>
+#include <vtkTransform.h>
+#include <vtkBoundingBox.h>
+#include <BRepBndLib.hxx>
+#include <Bnd_Box.hxx>
 
 using namespace PathForge::Path;
 
@@ -41,6 +46,18 @@ VtkViewer::VtkViewer()
     m_renderer->GradientBackgroundOn();
     m_renderWindow->SetSize(1600, 1000);
     m_renderWindow->SetWindowName("PathForge - VTK Viewer");
+
+    // 创建坐标轴
+    m_axesActor = vtkSmartPointer<vtkAxesActor>::New();
+    m_axesActor->SetTotalLength(1.0, 1.0, 1.0);
+    m_axesActor->SetShaftTypeToCylinder();
+    m_axesActor->SetAxisLabels(true);
+    m_axesActor->SetXAxisLabelText("X");
+    m_axesActor->SetYAxisLabelText("Y");
+    m_axesActor->SetZAxisLabelText("Z");
+    
+    // 将坐标轴添加到主渲染器
+    m_renderer->AddActor(m_axesActor);
 }
 
 VtkViewer::~VtkViewer() = default;
@@ -52,8 +69,9 @@ void VtkViewer::SetWindowTitle(const std::string& title)
 
 void VtkViewer::Clear()
 {
-    if (m_renderer) {
-        m_renderer->RemoveAllViewProps();
+    // 只移除模型 actor，保留坐标轴
+    if (m_actor) {
+        m_renderer->RemoveActor(m_actor);
     }
     m_actor = nullptr;
     m_mapper = nullptr;
@@ -116,6 +134,28 @@ void VtkViewer::ShowShape(const TopoDS_Shape& shape)
     Clear();
     ConvertOccToVtk(shape);
     if (m_actor) m_renderer->AddActor(m_actor);
+    
+    // 计算边界盒，将坐标轴放到右下角
+    if (m_axesActor)
+    {
+        Bnd_Box bbox;
+        BRepBndLib::Add(shape, bbox);
+        
+        Standard_Real xMin, yMin, zMin, xMax, yMax, zMax;
+        bbox.Get(xMin, yMin, zMin, xMax, yMax, zMax);
+        
+        // 设置坐标轴长度为边界盒尺寸的 1/5
+        double axisLength = std::max({xMax - xMin, yMax - yMin, zMax - zMin}) / 5.0;
+        m_axesActor->SetTotalLength(axisLength, axisLength, axisLength);
+        
+        // 将坐标轴放到边界盒的右下角 (X 最大，Y 最小，Z 最小)
+        vtkNew<vtkTransform> transform;
+        transform->Translate(xMax - axisLength, yMin, zMin);
+        m_axesActor->SetUserTransform(transform);
+        
+        m_axesActor->SetVisibility(true);
+    }
+    
     m_renderer->ResetCamera();
     m_renderWindow->Render();
 }
@@ -125,25 +165,46 @@ void VtkViewer::ShowToolpath(const Toolpath& toolpath)
     vtkNew<vtkPoints> vtkPoints;
     vtkNew<vtkCellArray> lines;
     const auto& points = toolpath.points();
-    for (size_t i = 0; i < points.size(); ++i)
+
+    // 只有当点数量≥2时才绘制线段（单个点无法形成线段）
+    if (points.size() >= 2)
     {
-        const auto& p = points[i].position;
-        vtkPoints->InsertNextPoint(p.X(), p.Y(), p.Z());
+        // 第一步：将所有加工路径点按顺序添加到VTK点集合中
+        for (size_t i = 0; i < points.size(); ++i)
+        {
+            const auto& p = points[i].position;
+            vtkPoints->InsertNextPoint(p.X(), p.Y(), p.Z());
+        }
+
+        // 第二步：按顺序连接相邻点（i → i+1），形成连续折线
+        // 循环终止条件：i < points.size() - 1，避免i+1越界
+        for (size_t i = 0; i < points.size() - 1; ++i)
+        {
+            vtkIdType ids[2] = {
+                static_cast<vtkIdType>(i),
+                static_cast<vtkIdType>(i + 1)
+            };
+            // 插入由两个相邻点组成的线段单元
+            lines->InsertNextCell(2, ids);
+        }
     }
-    for (size_t i = 0; i < points.size() - 1; ++i)
-    {
-        vtkIdType ids[2] = { static_cast<vtkIdType>(i), static_cast<vtkIdType>(i + 1) };
-        lines->InsertNextCell(2, ids);
-    }
+
+    // 构建PolyData对象，绑定点和线段数据
     vtkNew<vtkPolyData> toolpathData;
     toolpathData->SetPoints(vtkPoints);
     toolpathData->SetLines(lines);
+
+    // 创建Mapper（数据映射）和Actor（渲染实体）
     vtkNew<vtkPolyDataMapper> mapper;
     mapper->SetInputData(toolpathData);
+
     vtkSmartPointer<vtkActor> toolpathActor = vtkSmartPointer<vtkActor>::New();
     toolpathActor->SetMapper(mapper);
+    // 设置线段样式：红色、线宽2
     toolpathActor->GetProperty()->SetColor(1.0, 0.0, 0.0);
     toolpathActor->GetProperty()->SetLineWidth(2.0);
+
+    // 将加工路径Actor添加到渲染器，重置相机并刷新窗口
     m_renderer->AddActor(toolpathActor);
     m_renderer->ResetCamera();
     m_renderWindow->Render();
@@ -195,4 +256,13 @@ void VtkViewer::ShowShapeAndToolpath(const TopoDS_Shape& shape, const Toolpath& 
 {
     ShowShape(shape);
     ShowToolpath(toolpath);
+}
+
+void VtkViewer::ShowAxes(bool visible)
+{
+    if (m_axesActor)
+    {
+        m_axesActor->SetVisibility(visible);
+    }
+    m_renderWindow->Render();
 }
