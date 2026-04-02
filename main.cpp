@@ -1,102 +1,39 @@
-#include "VtkViewer.h"
-#include "ModelLoader.h"
-#include "Topology/FaceCollector.h"
-#include "Path/StrategyFactory.h"
-#include "Path/Toolpath.h"
-
-#include <TopoDS_Shape.hxx>
-#include <TopoDS_Face.hxx>
-#include <TopoDS_Wire.hxx>
-#include <BRep_Tool.hxx>
-#include <TopExp_Explorer.hxx>
-#include <TopAbs.hxx>
-#include <TopoDS.hxx>
-
-#include <iostream>
-
-using namespace PathForge;
-using namespace PathForge::Topology;
-using namespace PathForge::Path;
-
+#include <QApplication>
+#include <QStyleFactory>
+#include "MainWindow.h"
 
 int main(int argc, char* argv[])
 {
-    ModelLoader loader;
-    TopoDS_Shape shape;
+    QApplication app(argc, argv);
 
-    std::string file = "D:\\myself\\PathForge\\kl.step";
-    if (argc >= 2) file = argv[1];
+    // 设置应用程序信息
+    QApplication::setApplicationName("PathForge");
+    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setOrganizationName("PathForge");
 
-    if (!loader.LoadFile(file, shape) || shape.IsNull())
-    {
-        std::cerr << "Failed to load model: " << file << std::endl;
-        return -1;
-    }
+    // 设置 Fusion 风格（现代化外观）
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
 
-    FaceCollector collectFaces;
-    std::vector<TopoDS_Face> occFaces = collectFaces.collectFaces(shape);
+    // 设置深色主题调色板
+    QPalette darkPalette;
+    darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::WindowText, Qt::white);
+    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
+    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ToolTipBase, Qt::white);
+    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
+    darkPalette.setColor(QPalette::Text, Qt::white);
+    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ButtonText, Qt::white);
+    darkPalette.setColor(QPalette::BrightText, Qt::red);
+    darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
+    darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
+    QApplication::setPalette(darkPalette);
 
-    if (occFaces.empty())
-    {
-        std::cerr << "No faces found in model" << std::endl;
-        return -1;
-    }
+    // 创建并显示主窗口
+    MainWindow mainWindow;
+    mainWindow.show();
 
-    TopoDS_Face targetFace = occFaces.back();
-
-    TopoDS_Wire boundaryWire;
-    TopExp_Explorer exp(targetFace, TopAbs_WIRE);
-    if (exp.More())
-    {
-        boundaryWire = TopoDS::Wire(exp.Current());
-    }
-
-    if (boundaryWire.IsNull())
-    {
-        std::cerr << "Failed to get boundary wire from face" << std::endl;
-        return -1;
-    }
-
-    PathStrategyContext ctx;
-    ctx.setBoundaryWire(boundaryWire);
-	ctx.setBoundaryFace(targetFace);
-    ctx.setStockTop(5.0);
-    ctx.setModelTop(0.0);
-    ctx.setStepover(5.0);
-    ctx.setCuttingAngle(0.0);
-    ctx.setCuttingDirection(CuttingDirection::Zigzag);
-    ctx.setToolDiameter(10.0);
-    ctx.setFeedrate(1500.0);
-    ctx.setPlungeFeedrate(300.0);
-    ctx.setSafeZ(10.0);
-    ctx.setLeadInEnabled(true);
-    ctx.setLeadOutEnabled(true);
-    ctx.setLeadInLength(5.0);
-    ctx.setLeadOutLength(5.0);
-
-    auto strategy = PathStrategyFactory::create(StrategyType::FaceMilling2D);
-    if (!strategy)
-    {
-        std::cerr << "Failed to create strategy" << std::endl;
-        return -1;
-    }
-
-    strategy->setContext(ctx);
-
-    if (!strategy->validate())
-    {
-        std::cerr << "Strategy validation failed: " << strategy->getLastError() << std::endl;
-        return -1;
-    }
-
-    auto toolpath = strategy->generate();
-
-
-    VtkViewer viewer;
-    viewer.SetWindowTitle("PathForge - 2D Face Milling");
-    viewer.ShowShapeAndToolpath(shape, *toolpath);
-	viewer.ShowAxes(true);
-    viewer.StartInteraction();
-
-    return 0;
+    return QApplication::exec();
 }

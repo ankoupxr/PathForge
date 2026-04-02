@@ -33,6 +33,9 @@ public:
     VtkViewer();
     ~VtkViewer();
 
+    // 设置渲染窗口（用于 Qt 嵌入）
+    void SetRenderWindow(vtkRenderWindow* renderWindow);
+
     void ShowShape(const TopoDS_Shape& shape);
 
     void SetWindowTitle(const std::string& title);
@@ -49,6 +52,9 @@ public:
 
     void ShowAxes(bool visible = true);
 
+    vtkRenderWindow* GetRenderWindow() const { return m_renderWindow; }
+    vtkRenderer* GetRenderer() const { return m_renderer; }
+
 private:
     void ConvertOccToVtk(const TopoDS_Shape& shape);
 
@@ -58,4 +64,5 @@ private:
     vtkSmartPointer<vtkActor>                 m_actor;
     vtkSmartPointer<vtkPolyDataMapper>        m_mapper;
     vtkSmartPointer<vtkAxesActor>             m_axesActor;
+    bool                                      m_ownRenderWindow; // 是否拥有 renderWindow
 };

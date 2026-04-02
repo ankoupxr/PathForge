@@ -31,10 +31,12 @@
 #include <vtkBoundingBox.h>
 #include <BRepBndLib.hxx>
 #include <Bnd_Box.hxx>
+#include <vtkRendererCollection.h>
 
 using namespace PathForge::Path;
 
 VtkViewer::VtkViewer()
+    : m_ownRenderWindow(true)
 {
     m_renderer = vtkSmartPointer<vtkRenderer>::New();
     m_renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
@@ -52,15 +54,42 @@ VtkViewer::VtkViewer()
     m_axesActor->SetTotalLength(1.0, 1.0, 1.0);
     m_axesActor->SetShaftTypeToCylinder();
     m_axesActor->SetAxisLabels(true);
-    m_axesActor->SetXAxisLabelText("X");
-    m_axesActor->SetYAxisLabelText("Y");
-    m_axesActor->SetZAxisLabelText("Z");
-    
+    //m_axesActor->SetXAxisLabelText("X");
+    //m_axesActor->SetYAxisLabelText("Y");
+    //m_axesActor->SetZAxisLabelText("Z");
+
     // 将坐标轴添加到主渲染器
     m_renderer->AddActor(m_axesActor);
 }
 
 VtkViewer::~VtkViewer() = default;
+
+void VtkViewer::SetRenderWindow(vtkRenderWindow* renderWindow)
+{
+    if (!renderWindow)
+        return;
+
+    m_ownRenderWindow = false;
+    m_renderWindow = renderWindow;
+    
+    // 如果渲染器未设置，则创建并添加
+    if (!m_renderer)
+    {
+        m_renderer = vtkSmartPointer<vtkRenderer>::New();
+        m_renderer->SetBackground(0.1, 0.1, 0.15);
+        m_renderer->SetBackground2(0.2, 0.2, 0.3);
+        m_renderer->GradientBackgroundOn();
+    }
+    
+    // 直接添加渲染器，不检查是否已存在
+    m_renderWindow->AddRenderer(m_renderer);
+
+    // 添加坐标轴
+    if (m_axesActor)
+    {
+        m_renderer->AddActor(m_axesActor);
+    }
+}
 
 void VtkViewer::SetWindowTitle(const std::string& title)
 {

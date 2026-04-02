@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 3,
   "configurePresets": [
     {
@@ -10,11 +10,13 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
-        "OpenCASCADE_ROOT": "D:\\myself\\OCC\\occt-vc14-64",
-        "OpenCASCADE_INCLUDE_DIR": "D:\\myself\\OCC\\occt-vc14-64\\inc",
-        "VTK_DIR": "D:/myself/OCC/3rdparty-vc14-64/vtk-9.4.1-x64/lib/cmake/VTK-9.4",
-        "OpenCASCADE_LIBRARIES": "D:\\myself\\OCC\\occt-vc14-64\\win64\\vc14\\libd",
-        "CMAKE_CXX_STANDARD": "20"
+        "OpenCASCADE_ROOT": "G:\\OpenCASCADE-7.7.0-vc14-64\\opencascade-7.9.3-vc14-64",
+        "OpenCASCADE_INCLUDE_DIR": "G:\\OpenCASCADE-7.7.0-vc14-64\\opencascade-7.9.3-vc14-64\\inc",
+        "VTK_DIR": "G:\\env\\vtk\\lib\\cmake\\vtk-9.3",
+        "VTK_INCLUDE_DIRS": "G:\\env\\vtk\\inc\\vtk-9.3",
+        "OpenCASCADE_LIBRARIES": "G:\\OpenCASCADE-7.7.0-vc14-64\\opencascade-7.9.3-vc14-64\\win64\\vc14\\libd",
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_PREFIX_PATH": "F:\\qt\\5.15.2\\msvc2019_64"
       },
       "condition": {
         "type": "equals",
