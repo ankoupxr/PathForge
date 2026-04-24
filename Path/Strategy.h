@@ -15,7 +15,10 @@ enum class StrategyType {
     PocketMilling,
     ContourMilling,
     DrillCenter,
-    Engrave
+    Engrave,
+    PParameterLine,
+    EquidistantSectionPlane,
+    Projection
 };
 
 enum class CuttingDirection {

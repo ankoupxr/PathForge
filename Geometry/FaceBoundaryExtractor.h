@@ -1,8 +1,9 @@
-﻿// FaceBoundaryExtractor.h
+// FaceBoundaryExtractor.h
 #pragma once
 
 #include <TopoDS_Face.hxx>
 #include <gp_Pnt.hxx>
+#include <gp_Pnt2d.hxx>
 #include <vector>
 
 namespace PathForge {
@@ -77,6 +78,53 @@ public:
      * @return bool true if inside
      */
     bool isPointInside(const gp_Pnt& point, const std::vector<gp_Pnt>& boundary) const;
+
+    /**
+     * @brief Unfold face to 2D parameter space
+     * @param face Input face
+     * @return std::vector<gp_Pnt2d> 2D points in UV parameter space
+     * @description Uses surface UV bounds to generate a grid of 2D points.
+     *              For planar faces, this represents the natural parameterization.
+     */
+    std::vector<gp_Pnt2d> unfoldTo2D(const TopoDS_Face& face) const;
+
+    /**
+     * @brief Map 2D UV point to 3D on face surface
+     * @param face Target face
+     * @param uv 2D point in UV parameter space
+     * @return gp_Pnt 3D point on the surface
+     * @description Evaluates the surface at given UV coordinates to get 3D point.
+     */
+    gp_Pnt mapTo3D(const TopoDS_Face& face, const gp_Pnt2d& uv) const;
+
+    /**
+     * @brief Get surface UV parameter range
+     * @param face Input face
+     * @return std::pair<gp_Pnt2d, gp_Pnt2d> (umin, vmin), (umax, vmax)
+     * @description Returns the natural parameter bounds of the underlying surface.
+     */
+    std::pair<gp_Pnt2d, gp_Pnt2d> getUVRange(const TopoDS_Face& face) const;
+
+    /**
+     * @brief Map 3D point to 2D UV parameter space
+     * @param face Target face
+     * @param point 3D point on the surface
+     * @return gp_Pnt2d UV coordinates
+     * @description Computes the UV parameters corresponding to the 3D point on the surface.
+     */
+    gp_Pnt2d mapTo2D(const TopoDS_Face& face, const gp_Pnt& point) const;
+
+    /**
+     * @brief Offset 2D points by given distance
+     * @param points Original 2D points
+     * @param offsetDistance Offset distance (positive = outward)
+     * @return std::vector<gp_Pnt2d> Offset 2D points
+     * @description Offsets points in the UV parameter space.
+     */
+    std::vector<gp_Pnt2d> offset2D(
+        const std::vector<gp_Pnt2d>& points,
+        double offsetDistance
+    ) const;
 
 private:
     std::vector<gp_Pnt> extractEdgeLoop(const TopoDS_Shape& edge) const;

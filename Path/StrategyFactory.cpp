@@ -1,6 +1,9 @@
-﻿#include "StrategyFactory.h"
+#include "StrategyFactory.h"
 #include "Strategies/TwoDFaceMillingStrategy.h"
 #include "Strategies/AdaptiveCleaningStrategy.h"
+#include "Strategies/PParameterLineStrategy.h"
+#include "Strategies/EquidistantSectionPlaneStrategy.h"
+#include "Strategies/ProjectionStrategy.h"
 
 namespace PathForge::Path {
 
@@ -14,8 +17,12 @@ PathStrategyPtr PathStrategyFactory::create(StrategyType type)
     case StrategyType::PocketMilling:
     case StrategyType::DrillCenter:
     case StrategyType::Engrave:
-        // 其他策略类型待实现
-        return nullptr;
+    case StrategyType::PParameterLine:
+        return std::make_shared<PParameterLineStrategy>();
+    case StrategyType::EquidistantSectionPlane:
+        return std::make_shared<EquidistantSectionPlaneStrategy>();
+    case StrategyType::Projection:
+        return std::make_shared<ProjectionStrategy>();
     default:
         return nullptr;
     }
@@ -46,6 +53,12 @@ std::string PathStrategyFactory::strategyName(StrategyType type)
         return "Drill Center";
     case StrategyType::Engrave:
         return "Engrave";
+    case StrategyType::PParameterLine:
+        return "P Parameter Line";
+    case StrategyType::EquidistantSectionPlane:
+        return "Equidistant Section Plane";
+    case StrategyType::Projection:
+        return "Projection";
     default:
         return "Unknown";
     }
@@ -58,6 +71,15 @@ StrategyType PathStrategyFactory::strategyType(const std::string& name)
     }
     if (name == "Adaptive Cleaning" || name == "AdaptiveCleaning") {
         return StrategyType::ContourMilling;
+    }
+    if (name == "P Parameter Line" || name == "PParameterLine") {
+        return StrategyType::PParameterLine;
+    }
+    if (name == "Equidistant Section Plane" || name == "EquidistantSectionPlane") {
+        return StrategyType::EquidistantSectionPlane;
+    }
+    if (name == "Projection" || name == "ProjectionStrategy") {
+        return StrategyType::Projection;
     }
     return StrategyType::FaceMilling2D; // 默认
 }

@@ -1,4 +1,4 @@
-﻿// FaceBoundaryExtractor.cpp
+// FaceBoundaryExtractor.cpp
 #include "FaceBoundaryExtractor.h"
 
 #include <TopoDS.hxx>
@@ -9,11 +9,14 @@
 #include <BRepAdaptor_Surface.hxx>
 #include <GeomAbs_SurfaceType.hxx>
 #include <gp_Pnt.hxx>
+#include <gp_Pnt2d.hxx>
 #include <gp_Pln.hxx>
 #include <algorithm>
 #include <cmath>
 #include <TopoDS_Iterator.hxx>
 #include <Geom_Curve.hxx>
+#include <Geom_Surface.hxx>
+#include <GeomAPI_ProjectPointOnSurf.hxx>
 
 namespace PathForge {
 
@@ -230,6 +233,121 @@ bool FaceBoundaryExtractor::isOuterBoundary(const TopoDS_Shape& wire) const {
     }
 
     return edgeCount > 0;
+}
+
+std::vector<gp_Pnt2d> FaceBoundaryExtractor::unfoldTo2D(const TopoDS_Face& face) const {
+    std::vector<gp_Pnt2d> points2d;
+
+    Handle(Geom_Surface) surface = BRep_Tool::Surface(face);
+    if (surface.IsNull()) {
+        return points2d;
+    }
+
+    auto uvRange = getUVRange(face);
+    double umin = uvRange.first.X();
+    double umax = uvRange.second.X();
+    double vmin = uvRange.first.Y();
+    double vmax = uvRange.second.Y();
+
+    int uSamples = 20;
+    int vSamples = 20;
+    double du = (umax - umin) / uSamples;
+    double dv = (vmax - vmin) / vSamples;
+
+    for (int i = 0; i <= uSamples; ++i) {
+        for (int j = 0; j <= vSamples; ++j) {
+            double u = umin + i * du;
+            double v = vmin + j * dv;
+            gp_Pnt2d uv(u, v);
+            points2d.push_back(uv);
+        }
+    }
+
+    return points2d;
+}
+
+gp_Pnt FaceBoundaryExtractor::mapTo3D(const TopoDS_Face& face, const gp_Pnt2d& uv) const {
+    Handle(Geom_Surface) surface = BRep_Tool::Surface(face);
+    if (surface.IsNull()) {
+        return gp_Pnt(0, 0, 0);
+    }
+
+    gp_Pnt p = surface->Value(uv.X(), uv.Y());
+    return p;
+}
+
+std::pair<gp_Pnt2d, gp_Pnt2d> FaceBoundaryExtractor::getUVRange(const TopoDS_Face& face) const {
+    Handle(Geom_Surface) surface = BRep_Tool::Surface(face);
+    if (surface.IsNull()) {
+        return {gp_Pnt2d(0, 0), gp_Pnt2d(1, 1)};
+    }
+
+    Standard_Real umin, umax, vmin, vmax;
+    surface->Bounds(umin, umax, vmin, vmax);
+
+    return {gp_Pnt2d(umin, vmin), gp_Pnt2d(umax, vmax)};
+}
+
+gp_Pnt2d FaceBoundaryExtractor::mapTo2D(const TopoDS_Face& face, const gp_Pnt& point) const {
+    Handle(Geom_Surface) surface = BRep_Tool::Surface(face);
+    if (surface.IsNull()) {
+        return gp_Pnt2d(0, 0);
+    }
+
+    Standard_Real u = 0, v = 0;
+    GeomAPI_ProjectPointOnSurf proj(point, surface);
+    if (proj.IsDone()) {
+        proj.Parameter(u, v);
+    }
+
+    return gp_Pnt2d(u, v);
+}
+
+std::vector<gp_Pnt2d> FaceBoundaryExtractor::offset2D(
+    const std::vector<gp_Pnt2d>& points,
+    double offsetDistance
+) const {
+    if (points.size() < 2) {
+        return points;
+    }
+
+    std::vector<gp_Pnt2d> offsetPoints;
+
+    for (size_t i = 0; i < points.size(); ++i) {
+        const auto& prev = points[(i + points.size() - 1) % points.size()];
+        const auto& curr = points[i];
+        const auto& next = points[(i + 1) % points.size()];
+
+        double dx1 = curr.X() - prev.X();
+        double dy1 = curr.Y() - prev.Y();
+        double len1 = std::sqrt(dx1 * dx1 + dy1 * dy1);
+        if (len1 < 1e-10) continue;
+
+        double dx2 = next.X() - curr.X();
+        double dy2 = next.Y() - curr.Y();
+        double len2 = std::sqrt(dx2 * dx2 + dy2 * dy2);
+        if (len2 < 1e-10) continue;
+
+        double nx1 = -dy1 / len1;
+        double ny1 = dx1 / len1;
+        double nx2 = -dy2 / len2;
+        double ny2 = dx2 / len2;
+
+        double nx = (nx1 + nx2) / 2.0;
+        double ny = (ny1 + ny2) / 2.0;
+        double len = std::sqrt(nx * nx + ny * ny);
+        if (len < 1e-10) continue;
+
+        nx /= len;
+        ny /= len;
+
+        double newX = curr.X() + nx * offsetDistance;
+        double newY = curr.Y() + ny * offsetDistance;
+
+        offsetPoints.push_back(gp_Pnt2d(newX, newY));
+    }
+
+    return offsetPoints;
 }
 
 } // namespace PathForge
