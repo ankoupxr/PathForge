@@ -31,6 +31,7 @@
 
 #include "ModelLoader.h"
 #include "VtkViewer.h"
+#include "Path/PostProcess/PostProcessorFactory.h"\n#include "Feature/FeatureManager.h"\n#include "Simulation/SimulationEngine.h"
 
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
@@ -44,7 +45,7 @@ class FeatureTreeWidget : public QTreeWidget
 public:
     explicit FeatureTreeWidget(QWidget* parent = nullptr) : QTreeWidget(parent)
     {
-        setHeaderLabels({ "ç‰¹å¾", "ç±»åž‹", "æ•°é‡" });
+        setHeaderLabels({ "ÌØÕ÷", "ÀàÐÍ", "ÊýÁ¿" });
         setAlternatingRowColors(true);
     }
 };
@@ -74,7 +75,7 @@ class ParameterPanel : public QGroupBox
 {
     Q_OBJECT
 public:
-    explicit ParameterPanel(QWidget* parent = nullptr) : QGroupBox("åŠ å·¥å‚æ•°", parent)
+    explicit ParameterPanel(QWidget* parent = nullptr) : QGroupBox("¼Ó¹¤²ÎÊý", parent)
     {
         auto* layout = new QFormLayout(this);
 
@@ -82,31 +83,37 @@ public:
         m_toolDiameterSpin->setRange(0.1, 100.0);
         m_toolDiameterSpin->setValue(10.0);
         m_toolDiameterSpin->setSuffix(" mm");
-        layout->addRow("åˆ€å…·ç›´å¾„:", m_toolDiameterSpin);
+        layout->addRow("µ¶¾ßÖ±¾¶:", m_toolDiameterSpin);
 
         m_stepoverSpin = new QDoubleSpinBox(this);
         m_stepoverSpin->setRange(0.1, 50.0);
         m_stepoverSpin->setValue(5.0);
         m_stepoverSpin->setSuffix(" mm");
-        layout->addRow("æ­¥è·:", m_stepoverSpin);
+        layout->addRow("²½¾à:", m_stepoverSpin);
 
         m_feedrateSpin = new QDoubleSpinBox(this);
         m_feedrateSpin->setRange(10, 10000);
         m_feedrateSpin->setValue(1500);
         m_feedrateSpin->setSuffix(" mm/min");
-        layout->addRow("è¿›ç»™é€Ÿåº¦:", m_feedrateSpin);
+        layout->addRow("½ø¸øËÙ¶È:", m_feedrateSpin);
 
         m_safeZSpin = new QDoubleSpinBox(this);
         m_safeZSpin->setRange(0.1, 100.0);
         m_safeZSpin->setValue(10.0);
         m_safeZSpin->setSuffix(" mm");
-        layout->addRow("å®‰å…¨é«˜åº¦:", m_safeZSpin);
+        layout->addRow("°²È«¸ß¶È:", m_safeZSpin);
+
+        m_depthSpin = new QDoubleSpinBox(this);
+        m_depthSpin->setRange(0.1, 100.0);
+        m_depthSpin->setValue(5.0);
+        m_depthSpin->setSuffix(" mm");
+        layout->addRow("¼Ó¹¤Éî¶È:", m_depthSpin);
 
         m_strategyCombo = new QComboBox(this);
-        m_strategyCombo->addItems({ "é¢é“£å‰Š 2D", "åž‹è…”é“£å‰Š", "è½®å»“é“£å‰Š", "é’»å­”" });
-        layout->addRow("åŠ å·¥ç­–ç•¥:", m_strategyCombo);
+        m_strategyCombo->addItems({ "ÃæÏ³Ï÷ 2D", "ÐÍÇ»Ï³Ï÷", "ÂÖÀªÏ³Ï÷", "×ê¿×" });
+        layout->addRow("¼Ó¹¤²ßÂÔ:", m_strategyCombo);
 
-        m_generateBtn = new QPushButton("ç”Ÿæˆåˆ€è·¯", this);
+        m_generateBtn = new QPushButton("Éú³Éµ¶Â·", this);
         m_generateBtn->setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;");
         layout->addRow(m_generateBtn);
     }
@@ -115,6 +122,7 @@ public:
     QDoubleSpinBox* stepoverSpin() const { return m_stepoverSpin; }
     QDoubleSpinBox* feedrateSpin() const { return m_feedrateSpin; }
     QDoubleSpinBox* safeZSpin() const { return m_safeZSpin; }
+    QDoubleSpinBox* depthSpin() const { return m_depthSpin; }
     QComboBox* strategyCombo() const { return m_strategyCombo; }
     QPushButton* generateButton() const { return m_generateBtn; }
 
@@ -123,6 +131,7 @@ private:
     QDoubleSpinBox* m_stepoverSpin;
     QDoubleSpinBox* m_feedrateSpin;
     QDoubleSpinBox* m_safeZSpin;
+    QDoubleSpinBox* m_depthSpin;
     QComboBox* m_strategyCombo;
     QPushButton* m_generateBtn;
 };
@@ -140,7 +149,8 @@ private slots:
     void onRecognizeFeatures();
     void onGenerateToolpath();
     void onClearModel();
-    void onAbout();
+    void onAbout();\n    void onRunSimulation();
+    void onExportGCode();
 
 private:
     void setupUI();
@@ -149,20 +159,17 @@ private:
     void createDockWidgets();
     void loadModel(const QString& filePath);
     void displayFeatures();
-    std::string getStrategyType() const;
+    std::string getStrategyType() const;\n    std::string getMachiningTypeNameForFeature(const std::string& featureType) const;
 
-    // UI Components
     QWidget* m_centralWidget;
     QHBoxLayout* m_centralLayout;
 
-    // VTK Viewer
     QVTKOpenGLNativeWidget* m_vtkWidget;
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> m_renderWindow;
     vtkSmartPointer<vtkRenderer> m_renderer;
     vtkSmartPointer<vtkOrientationMarkerWidget> m_markerWidget;
     std::unique_ptr<VtkViewer> m_viewer;
 
-    // Docks
     QDockWidget* m_featureDock;
     QDockWidget* m_logDock;
     QDockWidget* m_parameterDock;
@@ -171,13 +178,14 @@ private:
     LogTextEdit* m_logText;
     ParameterPanel* m_parameterPanel;
 
-    // Model data
     ModelLoader m_modelLoader;
     TopoDS_Shape m_currentShape;
     std::vector<TopoDS_Face> m_recognizedFaces;
     bool m_hasModel;
 
-    // Status bar
     QLabel* m_statusLabel;
     QLabel* m_modelInfoLabel;
+
+    Path::ToolpathPtr m_currentToolpath;
+    PathForge::Post::NCConfig m_postConfig;\n\n    // Feature recognition\n    std::unique_ptr<PathForge::Feature::FeatureManager> m_featureManager;\n    std::unique_ptr<PathForge::Simulation::SimulationEngine> m_simulationEngine;
 };

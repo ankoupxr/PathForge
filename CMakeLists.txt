@@ -26,7 +26,7 @@ find_package(VTK REQUIRED COMPONENTS
     GUISupportQt
 )
 
-file(GLOB SOURCES_ROOT      "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+file(GLOB SOURCES_MULTIAXIS "${CMAKE_CURRENT_SOURCE_DIR}/Path/MultiAxis/*.cpp")\nfile(GLOB SOURCES_SIMULATION "${CMAKE_CURRENT_SOURCE_DIR}/Simulation/*.cpp")\nfile(GLOB SOURCES_FEATURE "${CMAKE_CURRENT_SOURCE_DIR}/Feature/*.cpp")\nfile(GLOB SOURCES_ROOT      "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 file(GLOB SOURCES_GEOMETRY  "${CMAKE_CURRENT_SOURCE_DIR}/Geometry/*.cpp")
 file(GLOB SOURCES_GEOMETRY_CAM "${CMAKE_CURRENT_SOURCE_DIR}/Geometry/CAM/*.cpp")
 file(GLOB SOURCES_GEOMETRY_BRIDGE "${CMAKE_CURRENT_SOURCE_DIR}/Geometry/Bridge/*.cpp")
@@ -52,7 +52,7 @@ set(ALL_SOURCES
     ${SOURCES_PATH_PROJECTION}
     ${SOURCES_PATH_MULTIAXIS}
     ${SOURCES_PATH_OPTIMIZATION}
-    ${SOURCES_PATH_CORE}
+    ${SOURCES_MULTIAXIS}\n    ${SOURCES_SIMULATION}\n    ${SOURCES_FEATURE}\n    ${SOURCES_PATH_CORE}
 )
 
 message(STATUS "ALL_SOURCES count: ${ALL_SOURCES}")
@@ -71,6 +71,7 @@ target_include_directories(PathForge PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Path/Core
     ${CMAKE_CURRENT_SOURCE_DIR}/Path/Strategies
     ${CMAKE_CURRENT_SOURCE_DIR}/Path/Projection
+    ${CMAKE_CURRENT_SOURCE_DIR}/Path/PostProcess
 )
 
 target_link_libraries(PathForge PRIVATE
@@ -85,7 +86,7 @@ target_link_libraries(PathForge PRIVATE
     TKMesh
     TKService
     TKV3d
-    TKXSBase  # <---
+    TKXSBase
     TKDESTEP
     TKDESTL
     TKOffset
@@ -104,7 +105,7 @@ target_link_libraries(PathForge PRIVATE
     VTK::FiltersCore
     VTK::IOPLY
     VTK::IOXML
-    VTK::GUISupportQt # <---
+    VTK::GUISupportQt
     Qt5::Core
     Qt5::Widgets
     Qt5::Gui
@@ -112,118 +113,90 @@ target_link_libraries(PathForge PRIVATE
 if(WIN32)
     target_link_libraries(PathForge PRIVATE opengl32)
 endif()
-# Qt MOC
 set_target_properties(PathForge PROPERTIES
     AUTOMOC ON
     AUTOUIC ON
     AUTORCC ON
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_SOURCES})
-# 复制DLL到输出目�?
 if(WIN32)
     set(OUTPUT_DIR "${CMAKE_BINARY_DIR}")
     set(OCC_DLL_DIR "G:/OpenCASCADE-7.7.0-vc14-64/opencascade-7.9.3-vc14-64/win64/vc14/bin")
     set(OCCT_3RDPARTY "G:/OpenCASCADE-7.7.0-vc14-64/3rdparty-vc14-64")
-    # OpenCASCADE DLL
     add_custom_command(TARGET PathForge POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCC_DLL_DIR}" "${OUTPUT_DIR}"
     )
-    # VTK
     if(EXISTS "G:/env/vtk/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "G:/env/vtk/bin" "${OUTPUT_DIR}"
         )
     endif()
-    # Qt5
-        set(QT_DIR "F:/qt/5.15.2/msvc2019_64")
+    set(QT_DIR "F:/qt/5.15.2/msvc2019_64")
     if(EXISTS "${QT_DIR}/bin")
-        # ���ƺ��� DLL
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${QT_DIR}/bin" "${OUTPUT_DIR}"
         )
-        
-        # �޸� 2: ��ʽ���� platforms ���Ŀ¼����� "platform plugin" ����
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${OUTPUT_DIR}/platforms"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QT_DIR}/plugins/platforms/qwindows.dll" "${OUTPUT_DIR}/platforms"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QT_DIR}/plugins/platforms/qwindowsd.dll" "${OUTPUT_DIR}/platforms"
         )
     endif()
-        # GLFW
     if(EXISTS "${OCCT_3RDPARTY}/glfw-3.4-x64/lib-vc2022")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/glfw-3.4-x64/lib-vc2022" "${OUTPUT_DIR}"
         )
     endif()
-
-    # ffmpeg
     if(EXISTS "${OCCT_3RDPARTY}/ffmpeg-3.3.4-64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/ffmpeg-3.3.4-64/bin" "${OUTPUT_DIR}"
         )
     endif()
-
-    # draco
     if(EXISTS "${OCCT_3RDPARTY}/draco-1.4.1-vc14-64/lib")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/draco-1.4.1-vc14-64/lib" "${OUTPUT_DIR}"
         )
     endif()
-
-    # openvr
     if(EXISTS "${OCCT_3RDPARTY}/openvr-1.14.15-64/bin/win64")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/openvr-1.14.15-64/bin/win64" "${OUTPUT_DIR}"
         )
     endif()
-
-    # angle
     if(EXISTS "${OCCT_3RDPARTY}/angle-gles2-2.1.0-vc14-64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/angle-gles2-2.1.0-vc14-64/bin" "${OUTPUT_DIR}"
         )
     endif()
-    # TBB
     if(EXISTS "${OCCT_3RDPARTY}/tbb-2021.13.0-x64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/tbb-2021.13.0-x64/bin" "${OUTPUT_DIR}"
         )
     endif()
-
-    # MSVC Runtime
     if(EXISTS "${OCCT_3RDPARTY}/msvc-vc14-64")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/msvc-vc14-64" "${OUTPUT_DIR}"
         )
     endif()
-
-    # FreeImage
     if(EXISTS "${OCCT_3RDPARTY}/freeimage-3.18.0-x64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/freeimage-3.18.0-x64/bin" "${OUTPUT_DIR}"
         )
     endif()
-
-    # lzma
     if(EXISTS "${OCCT_3RDPARTY}/lzma-5.2.2-vc14-64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/lzma-5.2.2-vc14-64/bin" "${OUTPUT_DIR}"
         )
     endif()
-
-    # gl2ps
     if(EXISTS "${OCCT_3RDPARTY}/gl2ps-1.3.8-vc14-64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/gl2ps-1.3.8-vc14-64/bin" "${OUTPUT_DIR}"
         )
     endif()
-
-    # jemalloc
     if(EXISTS "${OCCT_3RDPARTY}/jemalloc-vc14-64/bin")
         add_custom_command(TARGET PathForge POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${OCCT_3RDPARTY}/jemalloc-vc14-64/bin" "${OUTPUT_DIR}"
         )
     endif()
 endif()
-message(STATUS "OpenCASCADE 版本�?{OpenCASCADE_VERSION}")
-message(STATUS "VTK 版本�?{VTK_VERSION}")
+message(STATUS "OpenCASCADE �汾: ${OpenCASCADE_VERSION}")
+message(STATUS "VTK �汾: ${VTK_VERSION}")

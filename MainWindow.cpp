@@ -1,7 +1,8 @@
-#include "MainWindow.h"
+﻿#include "MainWindow.h"
 #include "Topology/FaceCollector.h"
 #include "Path/StrategyFactory.h"
 #include "Path/Toolpath.h"
+#include "Path/PostProcess/PostProcessorFactory.h"
 
 #include <QApplication>
 
@@ -41,11 +42,11 @@ MainWindow::MainWindow(QWidget* parent)
     createToolbars();
     createDockWidgets();
 
-    setWindowTitle("PathForge - 特征识别与加工系统");
+    setWindowTitle("PathForge - ����ʶ����ӹ�ϵͳ");
     resize(1600, 900);
 
-    m_logText->appendLog("应用程序已启动");
-    m_logText->appendLog("请导入 STEP/IGES/STL 模型文件开始工作");
+    m_logText->appendLog("Ӧ�ó��������");
+    m_logText->appendLog("�뵼�� STEP/IGES/STL ģ���ļ���ʼ����");
 }
 
 void MainWindow::setupUI()
@@ -56,25 +57,21 @@ void MainWindow::setupUI()
     m_centralLayout = new QHBoxLayout(m_centralWidget);
     m_centralLayout->setContentsMargins(0, 0, 0, 0);
 
-    // 使用 QVTKOpenGLNativeWidget 作为 VTK 容器
     m_vtkWidget = new QVTKOpenGLNativeWidget(this);
     m_vtkWidget->setMinimumSize(600, 400);
     m_vtkWidget->setStyleSheet("background-color: #1a1a2e;");
 
     m_centralLayout->addWidget(m_vtkWidget, 1);
 
-    // 创建 VTK 渲染窗口
     m_renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     m_renderer = vtkSmartPointer<vtkRenderer>::New();
     m_renderWindow->AddRenderer(m_renderer);
     m_vtkWidget->setRenderWindow(m_renderWindow);
 
-    // 设置背景颜色
     m_renderer->SetBackground(0.1, 0.1, 0.15);
     m_renderer->SetBackground2(0.2, 0.2, 0.3);
     m_renderer->GradientBackgroundOn();
 
-    // 显示坐标系的 vtk 组件
     vtkSmartPointer<vtkAxesActor> axes_actor = vtkSmartPointer<vtkAxesActor>::New();
     axes_actor->SetPosition(0, 0, 0);
     axes_actor->SetTotalLength(2, 2, 2);
@@ -89,7 +86,6 @@ void MainWindow::setupUI()
     axes_actor->GetYAxisShaftProperty()->SetColor(0, 1, 0);
     axes_actor->GetZAxisShaftProperty()->SetColor(0, 0, 1);
 
-    // 控制坐标系，使之随视角共同变化
     m_markerWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
     m_markerWidget->SetOrientationMarker(axes_actor);
     m_markerWidget->SetInteractor(m_vtkWidget->interactor());
@@ -97,80 +93,86 @@ void MainWindow::setupUI()
     m_markerWidget->SetEnabled(1);
     m_markerWidget->SetOutlineColor(1, 0, 0);
 
-    // 创建查看器
     m_viewer = std::make_unique<VtkViewer>();
     m_viewer->SetRenderWindow(m_renderWindow);
 }
 
 void MainWindow::createMenus()
 {
-    // 文件菜单
-    auto* fileMenu = menuBar()->addMenu("文件 (&F)");
+    auto* fileMenu = menuBar()->addMenu("�ļ� (&F)");
     
-    auto* importAction = fileMenu->addAction("导入模型 (&I)");
+    auto* importAction = fileMenu->addAction("����ģ�� (&I)");
     importAction->setShortcut(QKeySequence::Open);
     connect(importAction, &QAction::triggered, this, &MainWindow::onImportModel);
 
     fileMenu->addSeparator();
 
-    auto* exitAction = fileMenu->addAction("退出 (&X)");
+    auto* exitAction = fileMenu->addAction("�˳� (&X)");
     exitAction->setShortcut(QKeySequence::Quit);
     connect(exitAction, &QAction::triggered, this, &QMainWindow::close);
 
-    // 特征菜单
-    auto* featureMenu = menuBar()->addMenu("特征 (&F)");
+    auto* featureMenu = menuBar()->addMenu("���� (&E)");
     
-    auto* recognizeAction = featureMenu->addAction("识别特征 (&R)");
+    auto* recognizeAction = featureMenu->addAction("ʶ������ (&R)");
     recognizeAction->setShortcut(QKeySequence(Qt::Key_F5));
     connect(recognizeAction, &QAction::triggered, this, &MainWindow::onRecognizeFeatures);
 
     featureMenu->addSeparator();
 
-    auto* clearAction = featureMenu->addAction("清除模型 (&C)");
+    auto* clearAction = featureMenu->addAction("���ģ�� (&C)");
     clearAction->setShortcut(QKeySequence::Delete);
     connect(clearAction, &QAction::triggered, this, &MainWindow::onClearModel);
 
-    // 加工菜单
-    auto* machiningMenu = menuBar()->addMenu("加工 (&M)");
+    auto* machiningMenu = menuBar()->addMenu("�ӹ� (&M)");
     
-    auto* generateAction = machiningMenu->addAction("生成刀路 (&G)");
+    auto* generateAction = machiningMenu->addAction("���ɵ�· (&G)");
     generateAction->setShortcut(QKeySequence(Qt::Key_F9));
     connect(generateAction, &QAction::triggered, this, &MainWindow::onGenerateToolpath);
 
-    // 帮助菜单
-    auto* helpMenu = menuBar()->addMenu("帮助 (&H)");
+    machiningMenu->addSeparator();
+
+    auto* exportAction = machiningMenu->addAction("���� G-code (&E)");
+    exportAction->setShortcut(QKeySequence(Qt::Key_F10));
+    connect(exportAction, &QAction::triggered, this, &MainWindow::onExportGCode);\n\n    auto* simulationMenu = menuBar()->addMenu("���� (&S)");\n    \n    auto* runSimAction = simulationMenu->addAction("���з��� (&R)");\n    runSimAction->setShortcut(QKeySequence(Qt::Key_F11));\n    connect(runSimAction, &QAction::triggered, this, &MainWindow::onRunSimulation);
+
+    auto* helpMenu = menuBar()->addMenu("���� (&H)");
     
-    auto* aboutAction = helpMenu->addAction("关于 (&A)");
+    auto* aboutAction = helpMenu->addAction("���� (&A)");
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
 void MainWindow::createToolbars()
 {
-    auto* toolbar = addToolBar("主工具栏");
+    auto* toolbar = addToolBar("��������");
     toolbar->setMovable(false);
 
-    auto* importBtn = new QPushButton("📁 导入模型");
+    auto* importBtn = new QPushButton("����ģ��");
     importBtn->setStyleSheet("padding: 5px 10px;");
     connect(importBtn, &QPushButton::clicked, this, &MainWindow::onImportModel);
     toolbar->addWidget(importBtn);
 
     toolbar->addSeparator();
 
-    auto* recognizeBtn = new QPushButton("🔍 识别特征");
+    auto* recognizeBtn = new QPushButton("ʶ������");
     recognizeBtn->setStyleSheet("padding: 5px 10px;");
     connect(recognizeBtn, &QPushButton::clicked, this, &MainWindow::onRecognizeFeatures);
     toolbar->addWidget(recognizeBtn);
 
     toolbar->addSeparator();
 
-    auto* generateBtn = new QPushButton("⚙️ 生成刀路");
+    auto* generateBtn = new QPushButton("���ɵ�·");
     generateBtn->setStyleSheet("padding: 5px 10px; background-color: #4CAF50; color: white; font-weight: bold;");
     connect(generateBtn, &QPushButton::clicked, this, &MainWindow::onGenerateToolpath);
     toolbar->addWidget(generateBtn);
 
+    auto* exportBtn = new QPushButton("����G-code");
+    exportBtn->setStyleSheet("padding: 5px 10px; background-color: #2196F3; color: white; font-weight: bold;");
+    connect(exportBtn, &QPushButton::clicked, this, &MainWindow::onExportGCode);\n\n    auto* simBtn = new QPushButton("���з���");\n    simBtn->setStyleSheet("padding: 5px 10px; background-color: #FF9800; color: white; font-weight: bold;");\n    connect(simBtn, &QPushButton::clicked, this, &MainWindow::onRunSimulation);\n    toolbar->addWidget(simBtn);
+    toolbar->addWidget(exportBtn);
+
     toolbar->addSeparator();
 
-    auto* clearBtn = new QPushButton("🗑️ 清除");
+    auto* clearBtn = new QPushButton("���");
     clearBtn->setStyleSheet("padding: 5px 10px;");
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearModel);
     toolbar->addWidget(clearBtn);
@@ -178,15 +180,13 @@ void MainWindow::createToolbars()
 
 void MainWindow::createDockWidgets()
 {
-    // 特征树 Dock
-    m_featureDock = new QDockWidget("特征树", this);
+    m_featureDock = new QDockWidget("������", this);
     m_featureDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     m_featureTree = new FeatureTreeWidget(m_featureDock);
     m_featureDock->setWidget(m_featureTree);
     addDockWidget(Qt::RightDockWidgetArea, m_featureDock);
 
-    // 参数面板 Dock
-    m_parameterDock = new QDockWidget("加工参数", this);
+    m_parameterDock = new QDockWidget("�ӹ�����", this);
     m_parameterDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     m_parameterPanel = new ParameterPanel(m_parameterDock);
     m_parameterDock->setWidget(m_parameterPanel);
@@ -194,16 +194,14 @@ void MainWindow::createDockWidgets()
 
     connect(m_parameterPanel->generateButton(), &QPushButton::clicked, this, &MainWindow::onGenerateToolpath);
 
-    // 日志 Dock
-    m_logDock = new QDockWidget("日志", this);
+    m_logDock = new QDockWidget("��־", this);
     m_logDock->setAllowedAreas(Qt::BottomDockWidgetArea);
     m_logText = new LogTextEdit(m_logDock);
     m_logDock->setWidget(m_logText);
     addDockWidget(Qt::BottomDockWidgetArea, m_logDock);
 
-    // 状态栏
-    m_statusLabel = new QLabel("就绪");
-    m_modelInfoLabel = new QLabel("无模型");
+    m_statusLabel = new QLabel("����");
+    m_modelInfoLabel = new QLabel("��ģ��");
     m_statusLabel->setMinimumWidth(200);
     m_modelInfoLabel->setMinimumWidth(150);
 
@@ -213,8 +211,8 @@ void MainWindow::createDockWidgets()
 
 void MainWindow::onImportModel()
 {
-    QString filter = "CAD 模型文件 (*.step *.stp *.STEP *.STP *.iges *.igs *.IGES *.IGS *.stl *.STL *.brep *.BRep *.BREP);;所有文件 (*)";
-    QString filePath = QFileDialog::getOpenFileName(this, "导入模型", "", filter);
+    QString filter = "CAD ģ���ļ� (*.step *.stp *.STEP *.STP *.iges *.igs *.IGES *.IGS *.stl *.STL *.brep *.BRep *.BREP);;�����ļ� (*)";
+    QString filePath = QFileDialog::getOpenFileName(this, "����ģ��", "", filter);
 
     if (filePath.isEmpty())
         return;
@@ -224,23 +222,22 @@ void MainWindow::onImportModel()
 
 void MainWindow::loadModel(const QString& filePath)
 {
-    m_logText->appendLog(QString("正在加载模型：%1").arg(filePath));
-    m_statusLabel->setText("正在加载模型...");
+    m_logText->appendLog(QString("���ڼ���ģ�ͣ�%1").arg(filePath));
+    m_statusLabel->setText("���ڼ���ģ��...");
 
     TopoDS_Shape shape;
     if (!m_modelLoader.LoadFile(filePath.toStdString(), shape) || shape.IsNull())
     {
-        QMessageBox::critical(this, "错误", 
-            QString("无法加载模型:\n%1").arg(QString::fromStdString(m_modelLoader.GetLastError())));
-        m_statusLabel->setText("加载失败");
-        m_logText->appendLog("模型加载失败");
+        QMessageBox::critical(this, "����", 
+            QString("�޷�����ģ��:\n%1").arg(QString::fromStdString(m_modelLoader.GetLastError())));
+        m_statusLabel->setText("����ʧ��");
+        m_logText->appendLog("ģ�ͼ���ʧ��");
         return;
     }
 
     m_currentShape = shape;
     m_hasModel = true;
 
-    // 计算模型信息
     GProp_GProps props;
     BRepGProp::VolumeProperties(shape, props);
     double volume = props.Mass();
@@ -254,33 +251,28 @@ void MainWindow::loadModel(const QString& filePath)
     double sizeY = yMax - yMin;
     double sizeZ = zMax - zMin;
 
-    // 统计面数量
     int faceCount = 0;
     TopExp_Explorer exp(shape, TopAbs_FACE);
     while (exp.More()) { faceCount++; exp.Next(); }
 
-    // 显示模型
     m_viewer->ShowShape(shape);
 
-    // 更新 UI
-    m_modelInfoLabel->setText(QString("模型：%1 | 面：%2 | 体积:%3 mm³")
+    m_modelInfoLabel->setText(QString("ģ�ͣ�%1 | �棺%2 | ���:%3 mm3")
         .arg(QFileInfo(filePath).fileName())
         .arg(faceCount)
         .arg(volume, 0, 'f', 2));
 
-    m_statusLabel->setText("模型加载成功");
-    m_logText->appendLog(QString("模型加载成功 - 面数：%1, 体积：%2 mm³, 尺寸：%3 x %4 x %5 mm")
+    m_statusLabel->setText("ģ�ͼ��سɹ�");
+    m_logText->appendLog(QString("ģ�ͼ��سɹ� - ������%1, �����%2 mm3, �ߴ磺%3 x %4 x %5 mm")
         .arg(faceCount)
         .arg(volume, 0, 'f', 2)
         .arg(sizeX, 0, 'f', 2)
         .arg(sizeY, 0, 'f', 2)
         .arg(sizeZ, 0, 'f', 2));
 
-    // 清空特征树
     m_featureTree->clear();
     m_recognizedFaces.clear();
 
-    // 刷新渲染
     m_renderWindow->Render();
 }
 
@@ -288,62 +280,59 @@ void MainWindow::onRecognizeFeatures()
 {
     if (!m_hasModel || m_currentShape.IsNull())
     {
-        QMessageBox::warning(this, "警告", "请先导入模型");
+        QMessageBox::warning(this, "����", "���ȵ���ģ��");
         return;
     }
 
-    m_logText->appendLog("开始特征识别...");
-    m_statusLabel->setText("正在识别特征...");
+    m_logText->appendLog("��ʼ����ʶ��...");
+    m_statusLabel->setText("����ʶ������...");
 
     FaceCollector collector;
     m_recognizedFaces = collector.collectFaces(m_currentShape);
 
     if (m_recognizedFaces.empty())
     {
-        m_logText->appendLog("未识别到任何特征");
-        m_statusLabel->setText("未识别到特征");
-        QMessageBox::information(this, "提示", "未识别到可加工的特征");
+        m_logText->appendLog("δʶ���κ�����");
+        m_statusLabel->setText("δʶ������");
+        QMessageBox::information(this, "��ʾ", "δʶ�𵽿ɼӹ�������");
         return;
     }
 
     displayFeatures();
 
-    m_logText->appendLog(QString("特征识别完成 - 共识别 %1 个特征").arg(m_recognizedFaces.size()));
-    m_statusLabel->setText(QString("已识别 %1 个特征").arg(m_recognizedFaces.size()));
+    m_logText->appendLog(QString("����ʶ����� - ��ʶ�� %1 ������").arg(m_recognizedFaces.size()));
+    m_statusLabel->setText(QString("��ʶ�� %1 ������").arg(m_recognizedFaces.size()));
 }
 
 void MainWindow::displayFeatures()
 {
     m_featureTree->clear();
 
-    // 按类型分类统计
     std::map<std::string, int> faceTypes;
     
     for (const auto& face : m_recognizedFaces)
     {
-        // 简单分类：根据面的面积
         GProp_GProps props;
         BRepGProp::SurfaceProperties(face, props);
         double area = props.Mass();
 
-        std::string type = "平面";
-        if (area < 100) type = "小平面";
-        else if (area < 500) type = "中平面";
-        else type = "大平面";
+        std::string type = "ƽ��";
+        if (area < 100) type = "Сƽ��";
+        else if (area < 500) type = "��ƽ��";
+        else type = "��ƽ��";
 
         faceTypes[type]++;
     }
 
-    // 添加到树
     auto* rootItem = new QTreeWidgetItem(m_featureTree);
-    rootItem->setText(0, "加工特征");
+    rootItem->setText(0, "�ӹ�����");
     rootItem->setExpanded(true);
 
     for (const auto& [type, count] : faceTypes)
     {
         auto* item = new QTreeWidgetItem(rootItem);
         item->setText(0, QString::fromStdString(type));
-        item->setText(1, "铣削区域");
+        item->setText(1, "ϳ������");
         item->setText(2, QString::number(count));
     }
 
@@ -354,35 +343,32 @@ void MainWindow::onGenerateToolpath()
 {
     if (!m_hasModel || m_currentShape.IsNull())
     {
-        QMessageBox::warning(this, "警告", "请先导入模型");
+        QMessageBox::warning(this, "����", "���ȵ���ģ��");
         return;
     }
 
     if (m_recognizedFaces.empty())
     {
-        QMessageBox::warning(this, "警告", "请先识别特征");
+        QMessageBox::warning(this, "����", "����ʶ������");
         onRecognizeFeatures();
         if (m_recognizedFaces.empty())
             return;
     }
 
-    m_logText->appendLog("开始生成刀路...");
-    m_statusLabel->setText("正在生成刀路...");
+    m_logText->appendLog("��ʼ���ɵ�·...");
+    m_statusLabel->setText("�������ɵ�·...");
 
-    // 获取参数
     double toolDiameter = m_parameterPanel->toolDiameterSpin()->value();
     double stepover = m_parameterPanel->stepoverSpin()->value();
     double feedrate = m_parameterPanel->feedrateSpin()->value();
     double safeZ = m_parameterPanel->safeZSpin()->value();
     int strategyIndex = m_parameterPanel->strategyCombo()->currentIndex();
 
-    m_logText->appendLog(QString("参数：刀具直径=%1mm, 步距=%2mm, 进给=%3mm/min, 安全高度=%4mm")
-        .arg(toolDiameter).arg(stepover).arg(feedrate).arg(safeZ));
+    m_logText->appendLog(QString("����������ֱ��=%1mm, ����=%2mm, ���=%5mm, ����=%3mm/min, ��ȫ�߶�=%4mm")
+        .arg(toolDiameter).arg(stepover).arg(feedrate).arg(safeZ).arg(m_parameterPanel->depthSpin()->value());
 
-    // 选择最后一个面作为目标面
     TopoDS_Face targetFace = m_recognizedFaces.back();
 
-    // 获取边界
     TopoDS_Wire boundaryWire;
     TopExp_Explorer exp(targetFace, TopAbs_WIRE);
     if (exp.More())
@@ -392,12 +378,11 @@ void MainWindow::onGenerateToolpath()
 
     if (boundaryWire.IsNull())
     {
-        m_logText->appendLog("无法获取面的边界");
-        m_statusLabel->setText("刀路生成失败");
+        m_logText->appendLog("�޷���ȡ��ı߽�");
+        m_statusLabel->setText("��·����ʧ��");
         return;
     }
 
-    // 设置加工上下文
     PathStrategyContext ctx;
     ctx.setBoundaryWire(boundaryWire);
     ctx.setBoundaryFace(targetFace);
@@ -410,17 +395,25 @@ void MainWindow::onGenerateToolpath()
     ctx.setFeedrate(feedrate);
     ctx.setPlungeFeedrate(feedrate / 5);
     ctx.setSafeZ(safeZ);
+    ctx.setDepth(m_parameterPanel->depthSpin()->value());
     ctx.setLeadInEnabled(true);
     ctx.setLeadOutEnabled(true);
     ctx.setLeadInLength(5.0);
     ctx.setLeadOutLength(5.0);
 
-    // 创建策略
-    auto strategy = PathStrategyFactory::create(StrategyType::FaceMilling2D);
+    StrategyType strategyType = StrategyType::FaceMilling2D;
+    switch (strategyIndex) {
+        case 0: strategyType = StrategyType::FaceMilling2D; break;
+        case 1: strategyType = StrategyType::PocketMilling; break;
+        case 2: strategyType = StrategyType::ContourMilling; break;
+        case 3: strategyType = StrategyType::DrillCenter; break;
+        default: strategyType = StrategyType::FaceMilling2D; break;
+    }
+    auto strategy = PathStrategyFactory::create(strategyType);
     if (!strategy)
     {
-        m_logText->appendLog("无法创建加工策略");
-        m_statusLabel->setText("刀路生成失败");
+        m_logText->appendLog("�޷������ӹ�����");
+        m_statusLabel->setText("��·����ʧ��");
         return;
     }
 
@@ -428,8 +421,8 @@ void MainWindow::onGenerateToolpath()
 
     if (!strategy->validate())
     {
-        m_logText->appendLog(QString("策略验证失败：%1").arg(QString::fromStdString(strategy->getLastError())));
-        m_statusLabel->setText("刀路生成失败");
+        m_logText->appendLog(QString("������֤ʧ�ܣ�%1").arg(QString::fromStdString(strategy->getLastError())));
+        m_statusLabel->setText("��·����ʧ��");
         return;
     }
 
@@ -437,32 +430,132 @@ void MainWindow::onGenerateToolpath()
 
     if (!toolpath || toolpath->points().empty())
     {
-        m_logText->appendLog("刀路生成结果为空");
-        m_statusLabel->setText("刀路生成失败");
+        m_logText->appendLog("��·���ɽ��Ϊ��");
+        m_statusLabel->setText("��·����ʧ��");
         return;
     }
 
-    // 显示刀路
+    m_currentToolpath = toolpath;
     m_viewer->ShowToolpath(*toolpath);
 
-    m_logText->appendLog(QString("刀路生成完成 - 共 %1 个点").arg(toolpath->points().size()));
-    m_statusLabel->setText("刀路生成成功");
+    m_logText->appendLog(QString("��·������� - �� %1 ����").arg(toolpath->points().size()));
+    m_logText->appendLog("��ʾ: �� F10 ���� ����G-code ��ť���� NC ����");
+    m_statusLabel->setText("��·���ɳɹ�");
 
-    // 刷新渲染
     m_renderWindow->Render();
 }
 
-void MainWindow::onClearModel()
+void MainWindow::onExportGCode()
+{
+    if (!m_currentToolpath || m_currentToolpath->isEmpty())
+    {
+        QMessageBox::warning(this, "����", "�������ɵ�·");
+        return;
+    }
+
+    QString filter = "G-code �ļ� (*.nc *.gcode *.ncc);;�����ļ� (*)";
+    QString filePath = QFileDialog::getSaveFileName(this, "���� G-code", "", filter);
+
+    if (filePath.isEmpty())
+        return;
+
+    m_logText->appendLog("�������� G-code...");
+    m_statusLabel->setText("���ں���...");
+
+    try
+    {
+        m_postConfig.toolDiameter = m_parameterPanel->toolDiameterSpin()->value();
+        m_postConfig.defaultFeedrate = m_parameterPanel->feedrateSpin()->value();
+        m_postConfig.safeZ = m_parameterPanel->safeZSpin()->value();
+        m_postConfig.defaultSpindleSpeed = 3000;
+        m_postConfig.toolNumber = 1;
+        m_postConfig.programName = m_currentToolpath->name().empty() ? "PathForge" : m_currentToolpath->name();
+
+        auto gcode = PathForge::Post::postProcessToolpath(*m_currentToolpath, m_postConfig);
+
+        if (gcode.empty())
+        {
+            QMessageBox::critical(this, "����", "G-code ����ʧ��");
+            m_statusLabel->setText("G-code ����ʧ��");
+            return;
+        }
+
+        if (PathForge::Post::saveGCode(gcode, filePath.toStdString()))
+        {
+            m_logText->appendLog(QString("G-code �ѵ�����: %1").arg(filePath));
+            m_statusLabel->setText("G-code �����ɹ�");
+            QMessageBox::information(this, "�ɹ�", QString("G-code �ѳɹ�������:\n%1").arg(filePath));
+        }
+        else
+        {
+            QMessageBox::critical(this, "����", "�޷������ļ�");
+            m_statusLabel->setText("�ļ�����ʧ��");
+        }
+    }
+    catch (const std::exception& e)
+    {
+        QMessageBox::critical(this, "����", QString("�����쳣: %1").arg(e.what()));
+        m_statusLabel->setText("�����쳣");
+        m_logText->appendLog(QString("�����쳣: %1").arg(e.what()));
+    }
+}
+
+
+void MainWindow::onRunSimulation()
+{
+    if (!m_currentToolpath || m_currentToolpath->isEmpty())
+    {
+        QMessageBox::warning(this, "警告", "请先生成刀路");
+        return;
+    }
+    m_logText->appendLog("开始运行仿真...");
+    m_statusLabel->setText("正在仿真...");
+    try
+    {
+        m_simulationEngine = std::make_unique<PathForge::Simulation::SimulationEngine>();
+        m_simulationEngine->setWorkpiece(m_currentShape);
+        m_simulationEngine->setToolGeometry(
+            m_parameterPanel->toolDiameterSpin()->value(),
+            50.0, 30.0, 40.0);
+        auto results = m_simulationEngine->runSimulation(*m_currentToolpath);
+        m_logText->appendLog(QString("仿真完成 - 风险等级: %1%").arg(results.overallRisk * 100, 0, 10, 1));
+        m_logText->appendLog(QString("碰撞: %1处, 过切: %2处").arg(results.collisions.size()).arg(results.gouges.size()));
+        m_logText->appendLog(QString("材料去除: %1mm3").arg(results.statistics.materialRemovalVolume, 0, 10, 2));
+        if (results.hasCollisions)
+        {
+            m_logText->appendLog("警告: 检测到碰撞!");
+            m_statusLabel->setText("碰撞警告");
+            QMessageBox::warning(this, "碰撞", QString("检测到 %1 处碰撞").arg(results.collisions.size()));
+        }
+        else if (results.hasGouges)
+        {
+            m_logText->appendLog("警告: 检测到过切!");
+            m_statusLabel->setText("过切警告");
+            QMessageBox::warning(this, "过切", QString("检测到 %1 处过切").arg(results.gouges.size()));
+        }
+        else
+        {
+            m_logText->appendLog("仿真通过");
+            m_statusLabel->setText("仿真通过");
+            QMessageBox::information(this, "仿真", "仿真通过 - 刀路安全");
+        }
+    }
+    catch (const std::exception& e)
+    {
+        QMessageBox::critical(this, "错误", QString("仿真异常: %1").arg(e.what()));
+        m_statusLabel->setText("仿真失败");
+    }
+}void MainWindow::onClearModel()
 {
     m_hasModel = false;
+    m_currentToolpath.reset();
     m_currentShape = TopoDS_Shape();
     m_recognizedFaces.clear();
     m_featureTree->clear();
-    m_modelInfoLabel->setText("无模型");
-    m_statusLabel->setText("已清除模型");
-    m_logText->appendLog("模型已清除");
+    m_modelInfoLabel->setText("��ģ��");
+    m_statusLabel->setText("�����ģ��");
+    m_logText->appendLog("ģ�������");
 
-    // 清空 VTK 显示
     if (m_viewer)
     {
         m_viewer->Clear();
@@ -472,12 +565,13 @@ void MainWindow::onClearModel()
 
 void MainWindow::onAbout()
 {
-    QMessageBox::about(this, "关于 PathForge",
+    QMessageBox::about(this, "���� PathForge",
         "<h2>PathForge</h2>"
-        "<p>特征识别与加工系统</p>"
-        "<p>版本：1.0.0</p>"
-        "<p>基于 OpenCASCADE 和 VTK 开发</p>"
-        "<p>支持格式：STEP, IGES, STL, BRep</p>");
+        "<p>����ʶ����ӹ�ϵͳ</p>"
+        "<p>�汾��1.0.0</p>"
+        "<p>����ģ�飺֧��ͨ�� G-code ���</p>"
+        "<p>���� OpenCASCADE �� VTK ����</p>"
+        "<p>֧�ָ�ʽ��STEP, IGES, STL, BRep</p>");
 }
 
 std::string MainWindow::getStrategyType() const
