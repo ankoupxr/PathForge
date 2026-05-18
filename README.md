@@ -3,7 +3,7 @@
 
 ## 概述
 
-PathForge 是一款基于 C++17 的专业 CAM（计算机辅助制造）软件，采用模块化架构设计，集成了 OpenCASCADE 几何内核和 VTK 可视化引擎。
+PathForge 是一个CAM（计算机辅助制造）软件，玩具
 
 ## 技术栈
 
