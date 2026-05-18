@@ -1,4 +1,4 @@
-﻿# PathForge - 特征识别与加工系统
+﻿# PathForge
 
 
 ## 概述
